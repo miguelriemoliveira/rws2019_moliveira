@@ -2,7 +2,7 @@
 
 February 21st, 22nd, 27th and 28th. University of Aveiro.
 
-Check the [wiki](https://github.com/miguelriemoliveira/rws2018_moliveira/wiki) page for more information.
+Check the [wiki](https://github.com/miguelriemoliveira/rws2019_moliveira/wiki) page for more information.
 
 ![docs/arena.png](docs/arena.png?raw=true "Game arena")
 
