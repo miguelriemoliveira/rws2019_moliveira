@@ -3,7 +3,7 @@
 <launch>
   <arg name="delay" default="1"/>
 
-  <rosparam command="load" file="$(find player_moliveira)/param/params.yaml"/>
+  <rosparam command="load" file="$(find rws2019_bringup)/param/params.yaml"/>
 
   <node name="moliveira" pkg="player_moliveira" type="player_moliveira_node" respawn="false" output="screen"/>
   <node name="jsantos" pkg="player_jsantos" type="player_jsantos_node" respawn="false" output="screen"/>
