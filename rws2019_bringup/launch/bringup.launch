@@ -1,0 +1,21 @@
+<?xml version="1.0"?>
+<!-- -->
+<launch>
+  <arg name="delay" default="1"/>
+
+  <rosparam command="load" file="$(find player_moliveira)/param/params.yaml"/>
+
+  <node name="moliveira" pkg="player_moliveira" type="player_moliveira_node" respawn="false" output="screen"/>
+  <node name="jsantos" pkg="player_jsantos" type="player_jsantos_node" respawn="false" output="screen"/>
+  <node name="drato" pkg="player_drato" type="node" respawn="false" output="screen"/>
+  <node name="mferreira" pkg="player_mferreira" type="player_mferreira_node" respawn="false" output="screen"/>
+  <node name="dsilva" pkg="player_dsilva" type="player_dsilva_node" respawn="false" output="screen"/>
+  <node name="silvamfpedro" pkg="player_silvamfpedro" type="player_silvamfpedro_node" respawn="false" output="screen"/>
+  <node name="acastro" pkg="player_acastro" type="player_acastro_node" respawn="false" output="screen"/>
+  <node name="ttavares" pkg="player_ttavares" type="player_ttavares_node" respawn="false" output="screen"/>
+  <node name="jmoreira" pkg="player_jmoreira" type="player_jmoreira_node" respawn="false" output="screen"/>
+  <node name="tmadeira" pkg="player_tmadeira" type="player_tmadeira_node" respawn="false" output="screen"/>
+  <node name="talmeida" pkg="player_talmeida" type="node" respawn="false" output="screen"/>
+  <node name="jnogueira" pkg="player_jnogueira" type="player_jnogueira" respawn="false" output="screen"/>
+
+</launch>
