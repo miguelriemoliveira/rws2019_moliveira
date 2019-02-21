@@ -139,7 +139,6 @@ int main(int argc, char** argv)
     moliveira_ns::MyPlayer player("moliveira", "green");
     cout << "Hello World from " << player.player_name << " of team " << player.getTeamName() << endl;
 
-
     ros::Subscriber sub = n.subscribe("/make_a_play", 100, &moliveira_ns::MyPlayer::makeAPlayCallback, &player);
 
 
