@@ -1,0 +1,10 @@
+<?xml version="1.0"?>
+<!-- -->
+<launch>
+  <!--<arg name="delay" default="5"/>-->
+
+  <rosparam command="load" file="$(find player_moliveira)/param/params.yaml"/>
+
+  <node name="moliveira" pkg="player_moliveira" type="player_moliveira_node" respawn="true" output="screen"/>
+
+</launch>
