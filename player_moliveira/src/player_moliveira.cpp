@@ -12,7 +12,7 @@ using namespace ros;
 
 float randomizePosition()
 {
-    srand(6832*time(NULL)); // set initial seed value to 5323
+    srand(7786*time(NULL)); // set initial seed value to 5323
     return (((double)rand() / (RAND_MAX)) - 0.5) * 10;
 }
 
@@ -135,6 +135,8 @@ namespace moliveira_ns{
             //define global movement
             tf::Transform Tglobal = T1;
             br.sendTransform(tf::StampedTransform(Tglobal, ros::Time::now(), "world", player_name));
+            ros::Duration(0.1).sleep();
+            br.sendTransform(tf::StampedTransform(Tglobal, ros::Time::now(), "world", player_name));
             printInfo();
 
         }
@@ -162,13 +164,20 @@ namespace moliveira_ns{
 
             //STEP 2: define how I want to move
             float dx = 0.1;
-            float angle = M_PI/6;
+            float a = M_PI/16;
+
+            //STEP2.5: check values
+            float dx_max = msg->dog;
+            dx > dx_max ? dx = dx_max : dx = dx;
+
+            double amax = M_PI/30;
+            fabs(a) > fabs(amax) ? a = amax * a / fabs(a): a = a;
 
             //STEP 3: define local movement
             tf::Transform T1;
             T1.setOrigin( tf::Vector3(dx, 0.0, 0.0) );
             tf::Quaternion q;
-            q.setRPY(0, 0, angle);
+            q.setRPY(0, 0, a);
             T1.setRotation(q);
 
             //STEP 4: define global movement
