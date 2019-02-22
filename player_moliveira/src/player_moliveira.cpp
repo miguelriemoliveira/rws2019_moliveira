@@ -163,8 +163,8 @@ namespace moliveira_ns{
             }
 
             //STEP 2: define how I want to move
-            float dx = 0.1;
-            float a = M_PI/16;
+            float dx = 5;
+            float a = -M_PI;
 
             //STEP2.5: check values
             float dx_max = msg->dog;
