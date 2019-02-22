@@ -18,4 +18,7 @@
   <node name="talmeida" pkg="player_talmeida" type="node" respawn="false" output="screen"/>
   <node name="jnogueira" pkg="player_jnogueira" type="player_jnogueira" respawn="false" output="screen"/>
 
+
+  <node pkg="rviz" type="rviz" name="rviz" args="--display-config $(find rws2019_bringup)/config/rviz.rviz" required="true"/>
+
 </launch>
