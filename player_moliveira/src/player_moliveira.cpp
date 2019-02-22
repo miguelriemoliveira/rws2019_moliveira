@@ -153,19 +153,10 @@ namespace moliveira_ns{
            ROS_INFO_STREAM("I am hunting " << team_preys->team_name << " and fleeing from " << team_hunters->team_name);
         }
 
-//        float getAngleToPlayer(string other_player)
-//        {
-//            tf::StampedTransform T0;
-//            try{
-//                listener.lookupTransform(player_name, other_player, ros::Time(0), T0);
-//            }
-//            catch (tf::TransformException ex){
-//                ROS_ERROR("%s",ex.what());
-//                ros::Duration(0.01).sleep();
-//                return 1000;
-//            }
-//
-//        }
+        std::tuple<float, float> getDistanceAndAngleToArena()
+        {
+            return getDistanceAndAngleToPlayer("world");
+        }
 
         std::tuple<float, float> getDistanceAndAngleToPlayer(string other_player)
         {

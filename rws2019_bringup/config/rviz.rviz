@@ -67,8 +67,6 @@ Visualization Manager:
           Value: true
         jnogueira:
           Value: true
-        jsantos:
-          Value: true
         mferreira:
           Value: true
         moliveira:
@@ -98,8 +96,6 @@ Visualization Manager:
             {}
           jnogueira:
             {}
-          jsantos:
-            {}
           mferreira:
             {}
           moliveira:
@@ -117,7 +113,7 @@ Visualization Manager:
       Marker Topic: /player_markers
       Name: Players
       Namespaces:
-        {}
+        ns: true
       Queue Size: 100
       Value: true
     - Class: rviz/MarkerArray
@@ -150,11 +146,10 @@ Visualization Manager:
       Namespaces:
         acastro: true
         drato: true
-        dsilva: true
         jmoreira: true
         jnogueira: true
-        jsantos: true
         mferreira: true
+        talmeida: true
         tmadeira: true
       Queue Size: 100
       Value: true
@@ -222,7 +217,6 @@ Visualization Manager:
         drato: true
         dsilva: true
         jmoreira: true
-        jsantos: true
         mferreira: true
         moliveira: true
         talmeida: true
@@ -264,7 +258,7 @@ Visualization Manager:
       Invert Z Axis: false
       Name: Current View
       Near Clip Distance: 0.009999999776482582
-      Scale: 37.37849426269531
+      Scale: 39.246036529541016
       Target Frame: <Fixed Frame>
       Value: TopDownOrtho (rviz)
       X: 0.6082450151443481
