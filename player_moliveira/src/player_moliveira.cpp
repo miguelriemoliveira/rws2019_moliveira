@@ -1,6 +1,8 @@
 #include <iostream>
 #include <vector>
 #include <ros/ros.h>
+#include <tf/transform_broadcaster.h>
+
 #include <rws2019_msgs/MakeAPlay.h>
 
 using namespace std;
@@ -85,6 +87,8 @@ namespace moliveira_ns{
         boost::shared_ptr<Team> team_hunters;
         boost::shared_ptr<Team> team_mine;
         boost::shared_ptr<Team> team_preys;
+        tf::TransformBroadcaster br;
+        tf::Transform transform;
 
         MyPlayer(string player_name_in, string team_name_in) : Player(player_name_in) {
             team_red = (boost::shared_ptr<Team>) new Team("red");
@@ -124,6 +128,14 @@ namespace moliveira_ns{
         void makeAPlayCallback(rws2019_msgs::MakeAPlayConstPtr msg)
         {
             ROS_INFO("received a new msg");
+            //publicar uma transformação
+
+            tf::Transform transform1;
+            transform1.setOrigin( tf::Vector3(4.0, 4.0, 0.0) );
+            tf::Quaternion q;
+            q.setRPY(0, 0, 0);
+            transform1.setRotation(q);
+            br.sendTransform(tf::StampedTransform(transform1, ros::Time::now(), "world", player_name));
 
         }
 
