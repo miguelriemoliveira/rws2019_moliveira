@@ -67,6 +67,8 @@ Visualization Manager:
           Value: true
         jnogueira:
           Value: true
+        jsantos:
+          Value: true
         mferreira:
           Value: true
         moliveira:
@@ -95,6 +97,8 @@ Visualization Manager:
           jmoreira:
             {}
           jnogueira:
+            {}
+          jsantos:
             {}
           mferreira:
             {}
@@ -148,9 +152,9 @@ Visualization Manager:
         drato: true
         jmoreira: true
         jnogueira: true
+        jsantos: true
         mferreira: true
-        talmeida: true
-        tmadeira: true
+        moliveira: true
       Queue Size: 100
       Value: true
     - Alpha: 1
@@ -208,22 +212,13 @@ Visualization Manager:
       Queue Size: 100
       Value: true
     - Class: rviz/Marker
-      Enabled: true
+      Enabled: false
       Marker Topic: /player_names
       Name: MarkerPlayerNames
       Namespaces:
-        acastro: true
-        basic_shapes: true
-        drato: true
-        dsilva: true
-        jmoreira: true
-        mferreira: true
-        moliveira: true
-        talmeida: true
-        tmadeira: true
-        ttavares: true
+        {}
       Queue Size: 100
-      Value: true
+      Value: false
   Enabled: true
   Global Options:
     Background Color: 136; 138; 133
