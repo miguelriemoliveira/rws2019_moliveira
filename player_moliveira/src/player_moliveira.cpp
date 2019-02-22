@@ -153,8 +153,21 @@ namespace moliveira_ns{
            ROS_INFO_STREAM("I am hunting " << team_preys->team_name << " and fleeing from " << team_hunters->team_name);
         }
 
+//        float getAngleToPlayer(string other_player)
+//        {
+//            tf::StampedTransform T0;
+//            try{
+//                listener.lookupTransform(player_name, other_player, ros::Time(0), T0);
+//            }
+//            catch (tf::TransformException ex){
+//                ROS_ERROR("%s",ex.what());
+//                ros::Duration(0.01).sleep();
+//                return 1000;
+//            }
+//
+//        }
 
-        float getDistanceToPlayer(string other_player)
+        std::tuple<float, float> getDistanceAndAngleToPlayer(string other_player)
         {
             tf::StampedTransform T0;
             try{
@@ -163,10 +176,13 @@ namespace moliveira_ns{
             catch (tf::TransformException ex){
                 ROS_ERROR("%s",ex.what());
                 ros::Duration(0.01).sleep();
-                return 1000;
+                return {1000.0, 0.0};
             }
 
-            return sqrt(T0.getOrigin().x() * T0.getOrigin().x() + T0.getOrigin().y() * T0.getOrigin().y() );
+            float d = sqrt(T0.getOrigin().x() * T0.getOrigin().x() + T0.getOrigin().y() * T0.getOrigin().y() );
+            float a = atan2( T0.getOrigin().y(), T0.getOrigin().x());
+//            return std::tuple<float, float>(d,a);
+            return {d,a};
         }
 
         void makeAPlayCallback(rws2019_msgs::MakeAPlayConstPtr msg)
@@ -185,18 +201,34 @@ namespace moliveira_ns{
             }
 
             //STEP 2: define how I want to move
-            vector<float> distance_to_preys;
 
+            vector<float> distance_to_preys;
+            vector<float> angle_to_preys;
             //For each prey find the closest. Then follow it
             for (size_t i =0; i< team_preys->player_names.size(); i++)
             {
                 ROS_WARN_STREAM("team_preys = " << team_preys->player_names[i]);
-                distance_to_preys.push_back( getDistanceToPlayer(team_preys->player_names[i]) );
+
+                std::tuple<float, float> t = getDistanceAndAngleToPlayer(team_preys->player_names[i]);
+                distance_to_preys.push_back( std::get<0>(t));
+                angle_to_preys.push_back( std::get<1>(t));
+            }
+
+            //compute closest prey
+            int idx_closest_prey = 0;
+            float distance_closest_prey = 1000;
+            for (size_t i =0; i< distance_to_preys.size(); i++)
+            {
+                if (distance_to_preys[i] < distance_closest_prey)
+                {
+                    idx_closest_prey = i;
+                    distance_closest_prey = distance_to_preys[i];
+                }
             }
 
 
-            float dx = 5;
-            float a = -M_PI;
+            float dx = 10;
+            float a = angle_to_preys[idx_closest_prey];
 
             //STEP2.5: check values
             float dx_max = msg->dog;
