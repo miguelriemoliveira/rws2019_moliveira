@@ -6,7 +6,6 @@ Panels:
       Expanded:
         - /Global Options1
         - /Status1
-        - /TF1
         - /MarkerPlayerNames1
       Splitter Ratio: 0.5
     Tree Height: 333
@@ -73,6 +72,8 @@ Visualization Manager:
           Value: true
         moliveira:
           Value: true
+        psilva:
+          Value: true
         talmeida:
           Value: true
         tmadeira:
@@ -103,6 +104,8 @@ Visualization Manager:
           mferreira:
             {}
           moliveira:
+            {}
+          psilva:
             {}
           talmeida:
             {}
@@ -149,12 +152,14 @@ Visualization Manager:
       Name: Killing
       Namespaces:
         acastro: true
-        drato: true
-        jmoreira: true
+        dsilva: true
         jnogueira: true
         jsantos: true
         mferreira: true
         moliveira: true
+        talmeida: true
+        tmadeira: true
+        ttavares: true
       Queue Size: 100
       Value: true
     - Alpha: 1
@@ -188,13 +193,13 @@ Visualization Manager:
       Use rainbow: true
       Value: true
     - Class: rviz/Marker
-      Enabled: false
+      Enabled: true
       Marker Topic: /bocas
       Name: Bocas
       Namespaces:
-        {}
+        moliveira: true
       Queue Size: 100
-      Value: false
+      Value: true
     - Class: rviz/Marker
       Enabled: true
       Marker Topic: /object_point_cloud_marker

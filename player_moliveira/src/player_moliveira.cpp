@@ -107,7 +107,7 @@ namespace moliveira_ns{
 
             ros::NodeHandle n;
             vis_pub = (boost::shared_ptr<ros::Publisher>) new ros::Publisher;
-            (*vis_pub) = n.advertise<visualization_msgs::Marker>( "player_names", 0 );
+            (*vis_pub) = n.advertise<visualization_msgs::Marker>( "/bocas", 0 );
 
             if (team_red->playerBelongsToTeam(player_name))
             {
@@ -247,7 +247,7 @@ namespace moliveira_ns{
             marker.type = visualization_msgs::Marker::TEXT_VIEW_FACING;
             marker.action = visualization_msgs::Marker::ADD;
 //            marker.pose.position.x = 1;
-//            marker.pose.position.y = 1;
+            marker.pose.position.y = 0.5;
 //            marker.pose.position.z = 1;
 //            marker.pose.orientation.x = 0.0;
 //            marker.pose.orientation.y = 0.0;
@@ -255,12 +255,12 @@ namespace moliveira_ns{
 //            marker.pose.orientation.w = 1.0;
 //            marker.scale.x = ;
 //            marker.scale.y = 0.1;
-            marker.scale.z = 0.6;
+            marker.scale.z = 0.4;
             marker.color.a = 1.0; // Don't forget to set the alpha!
             marker.color.r = 0.0;
             marker.color.g = 0.0;
-            marker.color.b = 1.0;
-            marker.text = player_name;
+            marker.color.b = 0.0;
+            marker.text = "nao percebes nada disto!!";
 
 //only if using a MESH_RESOURCE marker type:
 //            marker.mesh_resource = "package://pr2_description/meshes/base_v0/base.dae";
