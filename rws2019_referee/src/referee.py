@@ -10,8 +10,8 @@ import rospy
 from visualization_msgs.msg import Marker
 from visualization_msgs.msg import MarkerArray
 from std_msgs.msg import String
-from rws2018_msgs.msg import MakeAPlay
-from rws2018_msgs.srv import GameQuery
+from rws2019_msgs.msg import MakeAPlay
+# from rws2019_msgs.srv import GameQuery
 import random
 import tf
 import math
@@ -61,9 +61,6 @@ to_print_end = True
 # ------------------------
 # CLASS DEFINITION
 # ------------------------
-
-
-
 
 def gameQueryCallback(event):
     global teamA, teamB, teamC, selected_team_count, game_pause, score
@@ -291,7 +288,7 @@ def referee():
     rospy.Timer(rospy.Duration(0.1), timerCallback, oneshot=False)
     rospy.Timer(rospy.Duration(game_duration), gameEndCallback, oneshot=True)
 
-    rospy.Timer(rospy.Duration(25), gameQueryCallback, oneshot=False)
+    # rospy.Timer(rospy.Duration(25), gameQueryCallback, oneshot=False)
 
     game_start = rospy.get_time()
 

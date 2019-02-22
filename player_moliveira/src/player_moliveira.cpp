@@ -153,6 +153,22 @@ namespace moliveira_ns{
            ROS_INFO_STREAM("I am hunting " << team_preys->team_name << " and fleeing from " << team_hunters->team_name);
         }
 
+
+        float getDistanceToPlayer(string other_player)
+        {
+            tf::StampedTransform T0;
+            try{
+                listener.lookupTransform(player_name, other_player, ros::Time(0), T0);
+            }
+            catch (tf::TransformException ex){
+                ROS_ERROR("%s",ex.what());
+                ros::Duration(0.01).sleep();
+                return 1000;
+            }
+
+            return sqrt(T0.getOrigin().x() * T0.getOrigin().x() + T0.getOrigin().y() * T0.getOrigin().y() );
+        }
+
         void makeAPlayCallback(rws2019_msgs::MakeAPlayConstPtr msg)
         {
             ROS_INFO("received a new msg");
@@ -169,6 +185,16 @@ namespace moliveira_ns{
             }
 
             //STEP 2: define how I want to move
+            vector<float> distance_to_preys;
+
+            //For each prey find the closest. Then follow it
+            for (size_t i =0; i< team_preys->player_names.size(); i++)
+            {
+                ROS_WARN_STREAM("team_preys = " << team_preys->player_names[i]);
+                distance_to_preys.push_back( getDistanceToPlayer(team_preys->player_names[i]) );
+            }
+
+
             float dx = 5;
             float a = -M_PI;
 

@@ -6,10 +6,8 @@ Panels:
       Expanded:
         - /Global Options1
         - /Status1
-        - /Players1
-        - /PointCloud21
+        - /TF1
         - /MarkerPlayerNames1
-        - /MarkerPlayerNames1/Status1
       Splitter Ratio: 0.5
     Tree Height: 333
   - Class: rviz/Selection
@@ -87,7 +85,7 @@ Visualization Manager:
       Name: TF
       Show Arrows: false
       Show Axes: true
-      Show Names: true
+      Show Names: false
       Tree:
         world:
           acastro:
@@ -154,9 +152,10 @@ Visualization Manager:
         drato: true
         dsilva: true
         jmoreira: true
+        jnogueira: true
         jsantos: true
         mferreira: true
-        ttavares: true
+        tmadeira: true
       Queue Size: 100
       Value: true
     - Alpha: 1
@@ -218,12 +217,22 @@ Visualization Manager:
       Marker Topic: /player_names
       Name: MarkerPlayerNames
       Namespaces:
+        acastro: true
+        basic_shapes: true
+        drato: true
+        dsilva: true
+        jmoreira: true
+        jsantos: true
+        mferreira: true
         moliveira: true
+        talmeida: true
+        tmadeira: true
+        ttavares: true
       Queue Size: 100
       Value: true
   Enabled: true
   Global Options:
-    Background Color: 0; 0; 0
+    Background Color: 136; 138; 133
     Default Light: true
     Fixed Frame: world
     Frame Rate: 30
@@ -255,7 +264,7 @@ Visualization Manager:
       Invert Z Axis: false
       Name: Current View
       Near Clip Distance: 0.009999999776482582
-      Scale: 41.7461051940918
+      Scale: 37.37849426269531
       Target Frame: <Fixed Frame>
       Value: TopDownOrtho (rviz)
       X: 0.6082450151443481
