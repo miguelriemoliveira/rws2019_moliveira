@@ -63,6 +63,8 @@
   <build_export_depend>rws2019_msgs</build_export_depend>
   <build_depend>tf</build_depend>
   <build_export_depend>tf</build_export_depend>
+  <build_depend>visualization_msgs</build_depend>
+  <build_export_depend>visualization_msgs</build_export_depend>
 
   <!-- The export tag contains other, unspecified, tags -->
   <export>

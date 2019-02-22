@@ -10,8 +10,8 @@ import rospy
 from visualization_msgs.msg import Marker
 from visualization_msgs.msg import MarkerArray
 from std_msgs.msg import String
-from rws2018_msgs.msg import MakeAPlay
-from rws2018_msgs.srv import GameQuery
+from rws2019_msgs.msg import MakeAPlay
+# from rws2018_msgs.srv import GameQuery
 import random
 import tf
 import math
@@ -202,29 +202,29 @@ def makeAPlayCallback(event):
     a = MakeAPlay()  # Create a MakeAPlay message
 
     # print("killed: " + str(killed))
-    if len(killed) == 0:  # get only the names, i.e. [0], from the killed list
-        players_killed = []
-    else:
-        players_killed = [i[0] for i in killed]
-
-    # Find on which team the killed are
-    for player in teamA:
-        if player in players_killed:
-            a.red_dead.append(player)
-        else:
-            a.red_alive.append(player)
-
-    for player in teamB:
-        if player in players_killed:
-            a.green_dead.append(player)
-        else:
-            a.green_alive.append(player)
-
-    for player in teamC:
-        if player in players_killed:
-            a.blue_dead.append(player)
-        else:
-            a.blue_alive.append(player)
+    # if len(killed) == 0:  # get only the names, i.e. [0], from the killed list
+    #     players_killed = []
+    # else:
+    #     players_killed = [i[0] for i in killed]
+    #
+    # # Find on which team the killed are
+    # for player in teamA:
+    #     if player in players_killed:
+    #         a.red_dead.append(player)
+    #     else:
+    #         a.red_alive.append(player)
+    #
+    # for player in teamB:
+    #     if player in players_killed:
+    #         a.green_dead.append(player)
+    #     else:
+    #         a.green_alive.append(player)
+    #
+    # for player in teamC:
+    #     if player in players_killed:
+    #         a.blue_dead.append(player)
+    #     else:
+    #         a.blue_alive.append(player)
 
     # Randomize velocity profiles
     a.cheetah = random.random() / 10
@@ -317,7 +317,7 @@ def referee():
     rospy.Timer(rospy.Duration(0.1), makeAPlayCallback, oneshot=False)
     rospy.Timer(rospy.Duration(game_duration), gameEndCallback, oneshot=True)
 
-    rospy.Timer(rospy.Duration(25), gameQueryCallback, oneshot=False)
+    # rospy.Timer(rospy.Duration(25), gameQueryCallback, oneshot=False)
 
     game_start = rospy.get_time()
 
