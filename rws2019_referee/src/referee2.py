@@ -360,7 +360,7 @@ def getPlayerPoses():
 def printPInfo():
     global pinfo
     for key in pinfo:
-        print('Player ' + key + ' has propperties:')
+        print('Player ' + key + ' has properties:')
         print(pinfo[key])
 
 
@@ -519,6 +519,7 @@ def checkGame(event):
         else:
             color_r, color_g, color_b = 0, 0, 1
 
+        print("Publishing " + player)
         ma_players.markers.append(
             createMarker(frame_id=player, type=Marker.TEXT_VIEW_FACING, id=0, ns=player + '_text', scale_z=.6,
                      color_r=color_r, color_g=color_g, color_b=color_b, color_a=1, frame_locked=1,
