@@ -17,6 +17,11 @@ float randomizePosition()
     return (((double)rand() / (RAND_MAX)) - 0.5) * 10;
 }
 
+float randomizePosition2()
+{
+    srand(3521*time(NULL)); // set initial seed value to 5323
+    return (((double)rand() / (RAND_MAX)) - 0.5) * 10;
+}
 
 namespace moliveira_ns{
 
@@ -131,7 +136,7 @@ namespace moliveira_ns{
 
             //define intial position
             float sx = randomizePosition();
-            float sy = randomizePosition();
+            float sy = randomizePosition2();
             tf::Transform T1;
             T1.setOrigin( tf::Vector3(sx, sy, 0.0) );
             tf::Quaternion q;
@@ -191,22 +196,22 @@ namespace moliveira_ns{
                 ros::Duration(0.1).sleep();
             }
 
+            ROS_INFO("%d", __LINE__);
             //STEP 2: define how I want to move
 
             vector<float> distance_to_preys;
             vector<float> angle_to_preys;
             //For each prey find the closest. Then follow it
-            for (size_t i =0; i< team_preys->player_names.size(); i++)
+            for (size_t i =0; i< msg->red_alive.size(); i++)
             {
-                ROS_WARN_STREAM("team_preys = " << team_preys->player_names[i]);
-
-                std::tuple<float, float> t = getDistanceAndAngleToPlayer(team_preys->player_names[i]);
+                std::tuple<float, float> t = getDistanceAndAngleToPlayer(msg->red_alive[i]);
                 distance_to_preys.push_back( std::get<0>(t));
                 angle_to_preys.push_back( std::get<1>(t));
             }
 
+            ROS_INFO("%d", __LINE__);
             //compute closest prey
-            int idx_closest_prey = 0;
+            int idx_closest_prey = -1;
             float distance_closest_prey = 1000;
             for (size_t i =0; i< distance_to_preys.size(); i++)
             {
@@ -217,9 +222,16 @@ namespace moliveira_ns{
                 }
             }
 
+            ROS_INFO("%d", __LINE__);
+            ROS_INFO_STREAM("idx_closest_prey = " << idx_closest_prey);
 
             float dx = 10;
-            float a = angle_to_preys[idx_closest_prey];
+            float a;
+
+            if (idx_closest_prey != -1)
+                a = angle_to_preys[idx_closest_prey];
+            else
+                a = M_PI;
 
             //STEP2.5: check values
             float dx_max = msg->dog;
@@ -235,10 +247,12 @@ namespace moliveira_ns{
             q.setRPY(0, 0, a);
             T1.setRotation(q);
 
+            ROS_INFO("%d", __LINE__);
             //STEP 4: define global movement
             tf::Transform Tglobal = T0*T1;
             br.sendTransform(tf::StampedTransform(Tglobal, ros::Time::now(), "world", player_name));
 
+            ROS_INFO("%d", __LINE__);
             visualization_msgs::Marker marker;
             marker.header.frame_id = player_name;
             marker.header.stamp = ros::Time();
@@ -262,8 +276,6 @@ namespace moliveira_ns{
             marker.color.b = 0.0;
             marker.text = "nao percebes nada disto!!";
 
-//only if using a MESH_RESOURCE marker type:
-//            marker.mesh_resource = "package://pr2_description/meshes/base_v0/base.dae";
             vis_pub->publish( marker );
         }
 

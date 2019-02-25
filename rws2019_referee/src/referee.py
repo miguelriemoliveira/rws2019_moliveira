@@ -40,14 +40,14 @@ game_duration = rospy.get_param('/game_duration')
 positive_score = rospy.get_param('/positive_score')
 negative_score = rospy.get_param('/negative_score')
 killed = []
-teamA = []
-teamB = []
-teamC = []
+team_red = []
+team_green = []
+team_blue = []
 player_score_pos = dict()
 player_score_neg = dict()
 selected_team_count = 0
 game_pause = False
-over = False
+game_over = False
 to_print_end = True
 
 # ------------------------
@@ -63,7 +63,7 @@ to_print_end = True
 # ------------------------
 
 def gameQueryCallback(event):
-    global teamA, teamB, teamC, selected_team_count, game_pause, score
+    global team_red, team_green, team_blue, selected_team_count, game_pause, score
     game_pause = True
 
     rospy.loginfo("gameQueryCallback")
@@ -149,7 +149,7 @@ def gameQueryCallback(event):
 
 def timerCallback(event):
     global game_pause
-    global over
+    global game_over
     if game_pause == True or over:
         if over:
             printScores()
@@ -157,7 +157,7 @@ def timerCallback(event):
 
     a = MakeAPlay()
 
-    global teamA, teamB, teamC
+    global team_red, team_green, team_blue
     global killed
     print("killed: " + str(killed))
 
@@ -190,6 +190,10 @@ def timerCallback(event):
     a.dog = random.random() / 10
     a.cat = random.random() / 10
     a.turtle = random.random() / 10
+    a.cheetah = 0
+    a.dog = 0
+    a.cat = 0
+    a.turtle = 0
     if not rospy.is_shutdown():
         global pub_make_a_play
         pub_make_a_play.publish(a)
@@ -217,7 +221,7 @@ def printScores():
 def gameEndCallback(event):
     rospy.loginfo("Game finished")
     global pub_score
-    global over
+    global game_over
     over = True
 
     ma = MarkerArray()
@@ -265,15 +269,15 @@ def referee():
     listener = tf.TransformListener()
     broadcaster = tf.TransformBroadcaster()
     global rate
-    rate = rospy.Rate(2)  # 10hz
+    rate = rospy.Rate(50)  # 10hz
     rate.sleep()
 
     hunting_distance = rospy.get_param('/hunting_distance')
-    global teamA
+    global team_red
     teamA = rospy.get_param('/team_red')
-    global teamB
+    global team_green
     teamB = rospy.get_param('/team_green')
-    global teamC
+    global team_blue
     teamC = rospy.get_param('/team_blue')
     for player in teamA:
         player_score_neg[player] = 0
@@ -293,7 +297,7 @@ def referee():
     game_start = rospy.get_time()
 
     while not rospy.is_shutdown():
-        if over:
+        if game_over:
             continue
 
         # print killed

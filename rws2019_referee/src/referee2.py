@@ -20,40 +20,85 @@ from sensor_msgs.msg import Image, PointCloud2, PointField
 
 import rospkg
 
+
 # ------------------------
 #   DATA STRUCTURES
 # ------------------------
+class Player:
+    x = None
+    y = None
+    stamp_last_pose = None
+    stamp_resuscitated = None
+    stamp_killed = None
+    team = ''
+    num_hunted = 0
+    num_preyed = 0
+
+    def __str__(self):
+        s = String()
+        a = '[x,y] = [' + str(self.x) + ', ' + str(self.y) + '] at time ' + str(self.stamp_last_pose) + '\n'
+        a += 'Team ' + self.team + ' killed at ' + str(self.stamp_killed) + ' resuscitated at ' + str(
+            self.stamp_resuscitated) + '\n'
+        a += 'hunted ' + str(self.num_hunted) + ' players and was hunted ' + str(self.num_preyed) + ' times'
+        return a
+
 
 # ------------------------
 # GLOBAL VARIABLES
 # ------------------------
-score = [0, 0, 0]
+score = {'red': 0, 'green': 0, 'blue': 0}
 pub_make_a_play = rospy.Publisher('make_a_play', MakeAPlay, queue_size=0)
 pub_referee = rospy.Publisher("referee_markers", MarkerArray, queue_size=10)
 pub_score = rospy.Publisher("score_markers", MarkerArray, queue_size=10)
 pub_rip = rospy.Publisher("kill_markers", MarkerArray, queue_size=10)
 pub_killer = rospy.Publisher("victim", String, queue_size=10)
+pub_players = rospy.Publisher("player_markers", MarkerArray, queue_size=10)
+rospy.init_node('referee', anonymous=True)  # initialize ros node
+listener = tf.TransformListener()
+broadcaster = tf.TransformBroadcaster()
 
 rate = 0
 game_duration = rospy.get_param('/game_duration')
 positive_score = rospy.get_param('/positive_score')
 negative_score = rospy.get_param('/negative_score')
 killed = []
-teamA = []
-teamB = []
-teamC = []
+team_red = []
+team_green = []
+team_blue = []
 player_score_pos = dict()
 player_score_neg = dict()
 selected_team_count = 0
 game_pause = False
-over = False
+game_over = False
 to_print_end = True
+pinfo = {}  # stores information about the position of players
+cheetah_speed = 0.1
+turtle_speed = 0.1
+cat_speed = 0.1
+dog_speed = 0.1
 
 
 # ------------------------
 # FUNCTION DEFINITION
 # ------------------------
-def createMarker(frame_id, type, action=Marker.ADD, ns='', id=0, lifetime=0, frame_locked=0,
+##
+# @brief Executes the command in the shell in a blocking or non-blocking manner
+#
+# @param cmd a string with teh command to execute
+#
+# @return
+def bash(cmd, blocking=True):
+    print "Executing command: " + cmd
+    p = subprocess.Popen(cmd, shell=True, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
+
+    if blocking:
+        for line in p.stdout.readlines():
+            print line,
+            p.wait()
+
+
+def createMarker(frame_id, type, action=Marker.ADD, ns='', id=0, lifetime=rospy.Duration(0), frame_locked=0,
+                 stamp=rospy.Time.now(),
                  position_x=0, position_y=0, position_z=0,
                  orientation_x=0, orientation_y=0, orientation_z=0, orientation_w=0,
                  scale_x=1, scale_y=1, scale_z=1,
@@ -62,6 +107,7 @@ def createMarker(frame_id, type, action=Marker.ADD, ns='', id=0, lifetime=0, fra
     m = Marker()
 
     m.header.frame_id = frame_id
+    m.header.stamp = stamp
     m.type = type
     m.action = action
     m.id = id
@@ -88,6 +134,7 @@ def createMarker(frame_id, type, action=Marker.ADD, ns='', id=0, lifetime=0, fra
     m.color.a = color_a
 
     m.text = text
+    m.frame_locked = frame_locked
 
     return m
 
@@ -101,7 +148,7 @@ def createMarker(frame_id, type, action=Marker.ADD, ns='', id=0, lifetime=0, fra
 # ------------------------
 
 def gameQueryCallback(event):
-    global teamA, teamB, teamC, selected_team_count, game_pause, score
+    global team_red, team_green, team_blue, selected_team_count, game_pause, score
     game_pause = True
 
     rospy.loginfo("gameQueryCallback")
@@ -109,7 +156,7 @@ def gameQueryCallback(event):
     # return None
 
     # percorrer a lista de equipas
-    team_list = [teamA, teamB, teamC]
+    team_list = [team_red, team_green, team_blue]
 
     selected_team = team_list[selected_team_count]
 
@@ -185,52 +232,60 @@ def gameQueryCallback(event):
     game_pause = False
 
 
+def randomizeVelocityProfiles(event):
+    global cheetah_speed, turtle_speed, dog_speed, cat_speed
+    cheetah_speed = random.random() / 10
+    turtle_speed = random.random() / 10
+    dog_speed = random.random() / 10
+    cat_speed = random.random() / 10
+
+
 def makeAPlayCallback(event):
     """ Publishes a makeAPlay message
 
     :param event:
     :return:
     """
-    global game_pause, over, teamA, teamB, teamC, killed, pub_make_a_play
+    global game_pause, game_over, team_red, team_green, team_blue, killed, pub_make_a_play
 
-    if game_pause == True or over:  # do not publish if game is over or paused
-        if over:
+    if game_pause == True or game_over:  # do not publish if game is over or paused
+        if game_over:
             printScores()
         return
 
     # Define the message
     a = MakeAPlay()  # Create a MakeAPlay message
 
-    # print("killed: " + str(killed))
-    # if len(killed) == 0:  # get only the names, i.e. [0], from the killed list
-    #     players_killed = []
-    # else:
-    #     players_killed = [i[0] for i in killed]
-    #
-    # # Find on which team the killed are
-    # for player in teamA:
-    #     if player in players_killed:
-    #         a.red_dead.append(player)
-    #     else:
-    #         a.red_alive.append(player)
-    #
-    # for player in teamB:
-    #     if player in players_killed:
-    #         a.green_dead.append(player)
-    #     else:
-    #         a.green_alive.append(player)
-    #
-    # for player in teamC:
-    #     if player in players_killed:
-    #         a.blue_dead.append(player)
-    #     else:
-    #         a.blue_alive.append(player)
+    print("killed: " + str(killed))
+    if len(killed) == 0:  # get only the names, i.e. [0], from the killed list
+        players_killed = []
+    else:
+        players_killed = [i[0] for i in killed]
+
+    # Find on which team the killed are
+    for player in team_red:
+        if player in players_killed:
+            a.red_dead.append(player)
+        else:
+            a.red_alive.append(player)
+
+    for player in team_green:
+        if player in players_killed:
+            a.green_dead.append(player)
+        else:
+            a.green_alive.append(player)
+
+    for player in team_blue:
+        if player in players_killed:
+            a.blue_dead.append(player)
+        else:
+            a.blue_alive.append(player)
 
     # Randomize velocity profiles
-    a.cheetah = random.random() / 10
-    a.dog = random.random() / 10
-    a.cat = random.random() / 10
-    a.turtle = random.random() / 10
+    a.cheetah = cheetah_speed
+    a.dog = dog_speed
+    a.cat = cat_speed
+    a.turtle = turtle_speed
 
     # Publish MakeAPlay msg
     if not rospy.is_shutdown():
@@ -258,9 +313,8 @@ def printScores():
 
 def gameEndCallback(event):
     rospy.loginfo("Game finished")
-    global pub_score
-    global over
-    over = True
+    global pub_score, game_over
+    game_over = True
 
     ma = MarkerArray()
 
@@ -285,532 +339,254 @@ def gameEndCallback(event):
     rospy.signal_shutdown("Game finished")
 
 
-def referee():
+def getPlayerPoses():
     """
-    Setup the referee ros node.
+    Get the pose of everyone in the arena
     """
+    global team_red, team_green, team_blue, pinfo
 
-    rospy.init_node('referee', anonymous=True)  # initialize ros node
-    listener = tf.TransformListener()
-    broadcaster = tf.TransformBroadcaster()
-    global rate
-    rate = rospy.Rate(2)  # 10hz
-    rate.sleep()
+    for player in team_red + team_green + team_blue:
+        try:
+            (trans, rot) = listener.lookupTransform("/world", player, rospy.Time(0))
+            pinfo[player].x = trans[0]
+            pinfo[player].y = trans[1]
+            pinfo[player].stamp_last_pose = rospy.get_time()
 
-    hunting_distance = rospy.get_param('/hunting_distance')
-    global teamA
-    teamA = rospy.get_param('/team_red')
-    global teamB
-    teamB = rospy.get_param('/team_green')
-    global teamC
-    teamC = rospy.get_param('/team_blue')
-    for player in teamA:
-        player_score_neg[player] = 0
-        player_score_pos[player] = 0
-    for player in teamB:
-        player_score_neg[player] = 0
-        player_score_pos[player] = 0
-    for player in teamC:
-        player_score_neg[player] = 0
-        player_score_pos[player] = 0
+        except (tf.LookupException, tf.ConnectivityException, tf.ExtrapolationException):
+            # rospy.logwarn("Could not get pose of player " + str(player))
+            pass
 
-    rospy.Timer(rospy.Duration(0.1), makeAPlayCallback, oneshot=False)
-    rospy.Timer(rospy.Duration(game_duration), gameEndCallback, oneshot=True)
 
-    # rospy.Timer(rospy.Duration(25), gameQueryCallback, oneshot=False)
+def printPInfo():
+    global pinfo
+    for key in pinfo:
+        print('Player ' + key + ' has propperties:')
+        print(pinfo[key])
 
-    game_start = rospy.get_time()
 
-    while not rospy.is_shutdown():
-        if over:
+def checkGame(event):
+    global listener, broadcaster, pinfo, immunity_duration, hunting_distance, max_distance_from_center_of_arena
+    global team_red, team_green, team_red
+    global pub_score, game_over
+
+    if game_over:  # if game over no need to check
+        return
+
+    # -----------------------------
+    # Initialize lists
+    # -----------------------------
+    out_of_arena_A = []
+    out_of_arena_B = []
+    out_of_arena_C = []
+    max_distance_from_center_of_arena = 8
+    to_be_killed = []
+    killed_names = [item[0] for item in killed]
+    rospy.loginfo("killed players " + str(killed_names))
+    ma_killed = MarkerArray()
+    ma_arena = MarkerArray()
+    ma_players = MarkerArray()
+
+    # -----------------------------
+    # Resuscitating players
+    # -----------------------------
+    # print killed
+    # tic = rospy.Time.now()
+    # for i in killed:
+    #     d = tic - i[1]
+    #     if d.to_sec() > 10:
+    #         rospy.logwarn("Ressuscitating %s", i[0])
+    #         killed.remove(i)
+    #         broadcaster.sendTransform((random.random() * 10 - 5, random.random() * 10 - 5, 0),
+    #                                   tf.transformations.quaternion_from_euler(0, 0, 0), tic, i[0], "/world")
+
+    # -----------------------------
+    # Get the pose of all players
+    # -----------------------------
+    getPlayerPoses()
+    # printPInfo()
+
+    # -----------------------------
+    # Check if anyone is hunted
+    # -----------------------------
+    z = zip(['red', 'green', 'blue'], ['green', 'blue', 'red'], [team_red, team_green, team_blue],
+            [team_green, team_blue, team_red])
+    for hunter_color, prey_color, hunters, preys in z:
+
+        # print("Checking for hunter team " + hunter_color + " and prey team " + prey_color)
+        for hunter in hunters:
+            # print("hunter " + hunter)
+            if hunter in killed_names:  # if hunter is killed he cannot hunt
+                continue
+            for prey in preys:
+                if prey in killed_names or prey in to_be_killed:  # cannot hunt already killed or to be killed prey
+                    continue
+
+                if (rospy.Time.now() - pinfo[
+                    prey].stamp_resuscitated).to_sec() < immunity_duration:  # cannot hunt during the immunity time
+                    continue
+
+                distance = math.sqrt((pinfo[hunter].x - pinfo[prey].x) ** 2 +
+                                     (pinfo[hunter].y - pinfo[prey].y) ** 2)
+
+                if distance < hunting_distance:
+                    to_be_killed.append(prey)
+                    player_score_neg[prey] += negative_score
+                    player_score_pos[hunter] += positive_score
+                    score[prey_color] = score[prey_color] + negative_score
+                    score[hunter_color] = score[hunter_color] + positive_score
+                    rospy.logwarn(prey + " (" + prey_color + ") was hunted by " + hunter + "(" + hunter_color + ")")
+                    ma_killed.markers.append(
+                         createMarker(frame_id="/world", type=Marker.TEXT_VIEW_FACING, ns=prey, lifetime=rospy.Duration.from_sec(5),
+                         position_x=pinfo[prey].x, position_y=pinfo[prey].y,
+                         scale_z=0.4, color_r=0.8, color_g=0.6, color_b=0.2, color_a=1,
+                         text='RIP ' + prey + ' (by ' + hunter + ')'))
+
+    # --------------------------------
+    # Killing because of stray from arena
+    # --------------------------------
+    for player in team_red + team_green + team_blue:
+        if player in killed_names:  # if player is killed he cannot be killed for straying the arena
             continue
 
-        # print killed
-        tic = rospy.Time.now()
-        for i in killed:
-            d = tic - i[1]
-            if d.to_sec() > 10:
-                rospy.logwarn("Ressuscitating %s", i[0])
-                killed.remove(i)
-                broadcaster.sendTransform((random.random() * 10 - 5, random.random() * 10 - 5, 0),
-                                          tf.transformations.quaternion_from_euler(0, 0, 0), tic, i[0], "/world")
+        if (rospy.Time.now() - pinfo[player].stamp_resuscitated).to_sec() < immunity_duration:  # cannot stray from arena during the immunity time
+            continue
 
-        rospy.loginfo("killed list is " + str([x[0] for x in killed]))
-        # print killed
-        # rospy.loginfo("Checking ...")
+        distance = math.sqrt(pinfo[player].x ** 2 + pinfo[player].y ** 2)
 
-        to_be_killed_A = [];
-        to_be_killed_B = [];
-        to_be_killed_C = [];
-        out_of_arena_A = [];
-        out_of_arena_B = [];
-        out_of_arena_C = [];
-        max_distance_from_center_of_arena = 8
+        if distance > max_distance_from_center_of_arena:
+            to_be_killed.append(player)
+            player_score_neg[player] += negative_score
+            color = pinfo[player].team
+            score[color] = score[color] + negative_score
+            rospy.logwarn(player + " (" + color + ") strayed away from the arena.")
+            ma_killed.markers.append(
+                createMarker(frame_id="/world", type=Marker.TEXT_VIEW_FACING, ns=player, lifetime=rospy.Duration.from_sec(5),
+                         position_x=pinfo[player].x, position_y=pinfo[player].y,
+                         scale_z=0.4, color_r=0.2, color_g=0.2, color_b=0.2, color_a=1,
+                         text='You are a chiken ' + player))
 
-        # Checking if players don't stray from the arena
-        for player in teamA:
-            # check if hunter is killed
-            result = [item for item in killed if item[0] == player]
-            if not result:
-                try:
-                    (trans, rot) = listener.lookupTransform("/world", player, rospy.Time(0))
-                    distance = math.sqrt(trans[0] * trans[0] + trans[1] * trans[1])
-                    # rospy.loginfo("D from %s to %s is %f", hunter, prey, distance)
-                    if distance > max_distance_from_center_of_arena:
-                        out_of_arena_A.append(player);
-                        if not player in [x[0] for x in killed]:
-                            player_score_neg[player] += 1
+    # --------------------------------
+    # Kill players
+    # --------------------------------
+    print("to_be_killed = " + str(to_be_killed))
+    for player in to_be_killed:
+        if player in [x[0] for x in killed]:  # cannot kill an already killed player
+            to_be_killed.remove(player)
+            continue
 
-                except (tf.LookupException, tf.ConnectivityException, tf.ExtrapolationException):
-                    t = 1
-                    # rospy.loginfo("Referee: tf error")
-
-        for player in teamB:
-            # check if hunter is killed
-            result = [item for item in killed if item[0] == player]
-            if not result:
-                try:
-                    (trans, rot) = listener.lookupTransform("/world", player, rospy.Time(0))
-                    distance = math.sqrt(trans[0] * trans[0] + trans[1] * trans[1])
-                    # rospy.loginfo("D from %s to %s is %f", hunter, prey, distance)
-                    if distance > max_distance_from_center_of_arena:
-                        out_of_arena_B.append(player);
-                        if not player in [x[0] for x in killed]:
-                            player_score_neg[player] += 1
-                except (tf.LookupException, tf.ConnectivityException, tf.ExtrapolationException):
-                    t = 1
-                    # rospy.loginfo("Referee: tf error")
-
-        for player in teamC:
-            # check if hunter is killed
-            result = [item for item in killed if item[0] == player]
-            if not result:
-                try:
-                    (trans, rot) = listener.lookupTransform("/world", player, rospy.Time(0))
-                    distance = math.sqrt(trans[0] * trans[0] + trans[1] * trans[1])
-                    # rospy.loginfo("D from %s to %s is %f", hunter, prey, distance)
-                    if distance > max_distance_from_center_of_arena:
-                        out_of_arena_C.append(player);
-                        if not player in [x[0] for x in killed]:
-                            player_score_neg[player] += 1
-                except (tf.LookupException, tf.ConnectivityException, tf.ExtrapolationException):
-                    t = 1
-                    # rospy.loginfo("Referee: tf error")
-
-        rospy.loginfo("to_be_killed is %s", str(to_be_killed_B))
-
-        # Check if anyone is hunted
-
-        # Team A hunting team B
-        for hunter in teamA:
-
-            # check if hunter is killed
-            result = [item for item in killed if item[0] == hunter]
-            if not result:
-                for prey in teamB:
-                    try:
-                        (trans, rot) = listener.lookupTransform(hunter, prey, rospy.Time(0))
-                        distance = math.sqrt(trans[0] * trans[0] + trans[1] * trans[1])
-                        # rospy.loginfo("D from %s to %s is %f", hunter, prey, distance)
-                        if distance < hunting_distance:
-                            to_be_killed_A.append(prey);
-                            if not prey in [x[0] for x in killed]:
-                                player_score_neg[prey] += 1
-                                player_score_pos[hunter] += 1
-                    except (tf.LookupException, tf.ConnectivityException, tf.ExtrapolationException):
-                        t = 1
-                        # rospy.loginfo("Referee: tf error")
-
-        # Team A hunting team B
-        for hunter in teamB:
-            # check if hunter is killed
-            result = [item for item in killed if item[0] == hunter]
-            if not result:
-                for prey in teamC:
-                    try:
-                        (trans, rot) = listener.lookupTransform(hunter, prey, rospy.Time(0))
-                        distance = math.sqrt(trans[0] * trans[0] + trans[1] * trans[1])
-                        # rospy.loginfo("D from %s to %s is %f", hunter, prey, distance)
-                        if distance < hunting_distance:
-                            to_be_killed_B.append(prey);
-                            if not prey in [x[0] for x in killed]:
-                                player_score_neg[prey] += 1
-                                player_score_pos[hunter] += 1
-                    except (tf.LookupException, tf.ConnectivityException, tf.ExtrapolationException):
-                        t = 1
-                        # rospy.loginfo("Referee: tf error")
-
-        # Team C hunting team A
-        for hunter in teamC:
-            # check if hunter is killed
-            result = [item for item in killed if item[0] == hunter]
-            if not result:
-                for prey in teamA:
-                    try:
-                        (trans, rot) = listener.lookupTransform(hunter, prey, rospy.Time(0))
-                        distance = math.sqrt(trans[0] * trans[0] + trans[1] * trans[1])
-                        # rospy.loginfo("D from %s to %s is %f", hunter, prey, distance)
-                        if distance < hunting_distance:
-                            to_be_killed_C.append(prey);
-                            if not prey in [x[0] for x in killed]:
-                                player_score_neg[prey] += 1
-                                player_score_pos[hunter] += 1
-                    except (tf.LookupException, tf.ConnectivityException, tf.ExtrapolationException):
-                        t = 1
-                        # rospy.loginfo("Referee: tf error")
-
-        ma_killed = MarkerArray()
-
+        print("Killing " + str(player))
+        to_be_killed.remove(player) # remove from list to be killed
+        bash("rosnode kill " + player, blocking=False)
         kill_time = rospy.Time.now()
-        for tbk in to_be_killed_A:
-            # rospy.logwarn("%s is to be killed by Team A", tbk)
+        killed.append((player, kill_time))    # for team, out_of_arena in zip(['red', 'green', 'blue'], [out_of_arena_A, out_of_arena_B, out_of_arena_C]):
+        pinfo[player].stamp_killed = kill_time
 
-            # Check if tbk is in the list of killed players
-            found = False
-            for item in killed:
-                if item[0] == tbk:
-                    found = True
+        broadcaster.sendTransform((random.random() * 1000 + 5000, random.random() * 1000 + 5000, 0),
+                                  tf.transformations.quaternion_from_euler(0, 0, 0), kill_time, player, "/world")
 
-            if found == False:
-                killed.append((tbk, kill_time))
-                rospy.logwarn("Red hunted %s", tbk)
-                score[0] = score[0] + positive_score
-                score[1] = score[1] + negative_score
-                s = String()
-                s.data = tbk
-                pub_killer.publish(s)
-                mk1 = Marker()
-                mk1.header.frame_id = "/world"
-                (trans, rot) = listener.lookupTransform("/world", tbk, rospy.Time(0))
-                mk1.pose.position.x = trans[0]
-                mk1.pose.position.y = trans[1]
-                mk1.type = mk1.TEXT_VIEW_FACING
-                mk1.action = mk1.ADD
-                mk1.id = 0;
-                mk1.ns = tbk
-                mk1.scale.x= 1
-                mk1.scale.y=1
-                mk1.scale.z=.4
-                mk1.color.a = 1.0
-                mk1.text = tbk
-                mk1.lifetime = rospy.Duration.from_sec(5)
-                mk1.frame_locked = 0
-                ma_killed.markers.append(mk1)
+    # --------------------------------
+    # Create arena markers
+    # --------------------------------
 
-                broadcaster.sendTransform((-100, -100, 0), tf.transformations.quaternion_from_euler(0, 0, 0), kill_time,
-                                          tbk, "/world")
+    ma_arena.markers.append(
+        createMarker(frame_id="/world", type=Marker.TEXT_VIEW_FACING, id=0, position_x=-5, position_y=5.2, scale_z=.6,
+                     color_r=1, color_a=1, text="R=" + str(score['red']), lifetime=rospy.Duration.from_sec(0)))
 
+    ma_arena.markers.append(
+        createMarker(frame_id="/world", type=Marker.TEXT_VIEW_FACING, id=1, position_x=-3, position_y=5.2, scale_z=.6,
+                     color_g=1, color_a=1, text="G=" + str(score['green']), lifetime=rospy.Duration.from_sec(0)))
 
-            else:
-                t = 1
-                # rospy.logwarn("%s was already hunted", tbk)
+    ma_arena.markers.append(
+        createMarker(frame_id="/world", type=Marker.TEXT_VIEW_FACING, id=2, position_x=-1, position_y=5.2, scale_z=.6,
+                     color_b=1, color_a=1, text="B=" + str(score['blue']), lifetime=rospy.Duration.from_sec(0)))
 
-        for tbk in to_be_killed_B:
-            # rospy.logwarn("%s is to be killed by Team B", tbk)
+    ma_arena.markers.append(
+        createMarker(frame_id="/world", type=Marker.TEXT_VIEW_FACING, id=3, position_x=3.5, position_y=5.2, scale_z=.6,
+                     color_b=1, color_a=1,
+                     text="Time " + str(format((rospy.Time.now() - game_start).to_sec(), '.2f')) + " of " + str(
+                         game_duration)))
 
-            # Check if tbk is in the list of killed players
-            found = False
-            for item in killed:
-                if item[0] == tbk:
-                    found = True
+    # --------------------------------
+    # Create player markers
+    # --------------------------------
+    print("teams: " + str(team_red + team_green + team_blue))
+    for player in team_red + team_green + team_blue:
+        color = pinfo[player].team
+        if color == 'red':
+            color_r, color_g, color_b = 1, 0, 0
+        elif color == 'green':
+            color_r, color_g, color_b = 0, 1, 0
+        else:
+            color_r, color_g, color_b = 0, 0, 1
 
-            if found == False:
-                killed.append((tbk, kill_time))
-                rospy.logwarn("Green hunted %s", tbk)
-                score[1] = score[1] + positive_score
-                score[2] = score[2] + negative_score
-                s = String()
-                s.data = tbk
-                pub_killer.publish(s)
+        ma_players.markers.append(
+            createMarker(frame_id=player, type=Marker.TEXT_VIEW_FACING, id=0, ns=player + '_text', scale_z=.6,
+                     color_r=color_r, color_g=color_g, color_b=color_b, color_a=1, frame_locked=1,
+                     text=player))
+    # --------------------------------
+    # Publishing markers
+    # --------------------------------
+    if ma_killed.markers:
+        pub_rip.publish(ma_killed)
 
-                mk1 = Marker()
-                mk1.header.frame_id = "/world"
-                (trans, rot) = listener.lookupTransform("/world", tbk, rospy.Time(0))
-                mk1.pose.position.x = trans[0]
-                mk1.pose.position.y = trans[1]
-                mk1.type = mk1.TEXT_VIEW_FACING
-                mk1.action = mk1.ADD
-                mk1.id = 0;
-                mk1.ns = tbk
-                mk1.scale.x= 1
-                mk1.scale.y=1
-                mk1.scale.z=.4
-                mk1.color.a = 1.0
-                mk1.text = tbk
-                mk1.lifetime = rospy.Duration.from_sec(5)
-                mk1.frame_locked = 0
-                ma_killed.markers.append(mk1)
-                broadcaster.sendTransform((100, -100, 0), tf.transformations.quaternion_from_euler(0, 0, 0), kill_time,
-                                          tbk, "/world")
+    if ma_arena.markers:
+        pub_score.publish(ma_arena)
 
-            else:
-                t = 1
-                # rospy.logwarn("%s was already hunted", tbk)
-
-        for tbk in to_be_killed_C:
-            # rospy.logwarn("%s is to be killed by Team C", tbk)
-
-            # Check if tbk is in the list of killed players
-            found = False
-            for item in killed:
-                if item[0] == tbk:
-                    found = True
-
-            if found == False:
-                killed.append((tbk, kill_time))
-                rospy.logwarn("Blue hunted %s", tbk)
-                score[2] = score[2] + positive_score
-                score[0] = score[0] + negative_score
-                s = String()
-                s.data = tbk
-                pub_killer.publish(s)
-
-                mk1 = Marker()
-                mk1.header.frame_id = "/world"
-                (trans, rot) = listener.lookupTransform("/world", tbk, rospy.Time(0))
-                mk1.pose.position.x = trans[0]
-                mk1.pose.position.y = trans[1]
-                mk1.type = mk1.TEXT_VIEW_FACING
-                mk1.action = mk1.ADD
-                mk1.id = 0;
-                mk1.ns = tbk
-                mk1.scale.x= 1
-                mk1.scale.y=1
-                mk1.scale.z=.4
-
-                mk1.color.a = 1.0
-                mk1.text = tbk
-                mk1.lifetime = rospy.Duration.from_sec(5)
-                mk1.frame_locked = 0
-                ma_killed.markers.append(mk1)
-                broadcaster.sendTransform((100, 100, 0), tf.transformations.quaternion_from_euler(0, 0, 0), kill_time,
-                                          tbk, "/world")
-
-            else:
-                t = 1
-                # rospy.logwarn("%s was already hunted", tbk)
-
-        # --------------------------------
-        # Killing because of stray from arena
-        # --------------------------------
-        for team, out_of_arena in zip(['red', 'green', 'blue'], [out_of_arena_A, out_of_arena_B, out_of_arena_C]):
-            for tbk in out_of_arena:
-
-                # Check if tbk is in the list of killed players
-                found = False
-                for item in killed:
-                    if item[0] == tbk:
-                        found = True
-
-                if found == False:
-                    killed.append((tbk, kill_time))
-                    rospy.logwarn("Red hunted %s", tbk)
-                    score[0] = score[0] + negative_score
-                    s = String()
-                    s.data = tbk
-                    pub_killer.publish(s)
-                    mk1 = Marker()
-                    mk1.header.frame_id = "/world"
-                    (trans, rot) = listener.lookupTransform("/world", tbk, rospy.Time(0))
-                    mk1.pose.position.x = trans[0]
-                    mk1.pose.position.y = trans[1]
-                    mk1.type = mk1.TEXT_VIEW_FACING
-                    mk1.action = mk1.ADD
-                    mk1.id = 0;
-                    mk1.ns = tbk
-                    mk1.scale.x= 1
-                    mk1.scale.y=1
-                    mk1.scale.z=.4
-                    mk1.color.a = 1.0
-                    mk1.text = "Queres fugir " + tbk + "?"
-                    mk1.lifetime = rospy.Duration.from_sec(5)
-                    mk1.frame_locked = 0
-                    ma_killed.markers.append(mk1)
-
-                    broadcaster.sendTransform((-100, -100, 0), tf.transformations.quaternion_from_euler(0, 0, 0),
-                                              kill_time,
-                                              tbk, "/world")
-
-
-                else:
-                    t = 1
-                    # rospy.logwarn("%s was already hunted", tbk)
-
-        # for tbk in out_of_arena_B:
-        #     # rospy.logwarn("%s is to be killed by Team B", tbk)
-        #
-        #     # Check if tbk is in the list of killed players
-        #     found = False
-        #     for item in killed:
-        #         if item[0] == tbk:
-        #             found = True
-        #
-        #     if found == False:
-        #         killed.append((tbk, kill_time))
-        #         rospy.logwarn("Green hunted %s", tbk)
-        #         score[1] = score[1] + negative_score
-        #         s = String()
-        #         s.data = tbk
-        #         pub_killer.publish(s)
-        #
-        #         mk1 = Marker()
-        #         mk1.header.frame_id = "/world"
-        #         (trans, rot) = listener.lookupTransform("/world", tbk, rospy.Time(0))
-        #         mk1.pose.position.x = trans[0]
-        #         mk1.pose.position.y = trans[1]
-        #         mk1.type = mk1.TEXT_VIEW_FACING
-        #         mk1.action = mk1.ADD
-        #         mk1.id = 0;
-        #         mk1.ns = tbk
-        #         mk1 = setMarkerScale(mk1, 1, 1, .4)
-        #         mk1.color.a = 1.0
-        #         mk1.text = "Queres fugir " + tbk + "?"
-        #         mk1.lifetime = rospy.Duration.from_sec(5)
-        #         mk1.frame_locked = 0
-        #         ma_killed.markers.append(mk1)
-        #         broadcaster.sendTransform((100, -100, 0), tf.transformations.quaternion_from_euler(0, 0, 0), kill_time,
-        #                                   tbk, "/world")
-        #
-        #     else:
-        #         t = 1
-        #         # rospy.logwarn("%s was already hunted", tbk)
-        #
-        # for tbk in out_of_arena_C:
-        #     # rospy.logwarn("%s is to be killed by Team C", tbk)
-        #
-        #     # Check if tbk is in the list of killed players
-        #     found = False
-        #     for item in killed:
-        #         if item[0] == tbk:
-        #             found = True
-        #
-        #     if found == False:
-        #         killed.append((tbk, kill_time))
-        #         rospy.logwarn("Blue hunted %s", tbk)
-        #         score[2] = score[2] + negative_score
-        #         s = String()
-        #         s.data = tbk
-        #         pub_killer.publish(s)
-        #
-        #         mk1 = Marker()
-        #         mk1.header.frame_id = "/world"
-        #         (trans, rot) = listener.lookupTransform("/world", tbk, rospy.Time(0))
-        #         mk1.pose.position.x = trans[0]
-        #         mk1.pose.position.y = trans[1]
-        #         mk1.type = mk1.TEXT_VIEW_FACING
-        #         mk1.action = mk1.ADD
-        #         mk1.id = 0;
-        #         mk1.ns = tbk
-        #         mk1 = setMarkerScale(mk1, 1, 1, .4)
-        #         mk1.color.a = 1.0
-        #         mk1.text = "Queres fugir " + tbk + "?"
-        #         mk1.lifetime = rospy.Duration.from_sec(5)
-        #         mk1.frame_locked = 0
-        #         ma_killed.markers.append(mk1)
-        #         broadcaster.sendTransform((100, 100, 0), tf.transformations.quaternion_from_euler(0, 0, 0), kill_time,
-        #                                   tbk, "/world")
-        #
-        #     else:
-        #         t = 1
-        #         # rospy.logwarn("%s was already hunted", tbk)
-
-        if ma_killed.markers:
-            pub_rip.publish(ma_killed)
-        # print killed
-
-        # rospy.logwarn("Team A: %s hunted %s", hunter, prey)
-        ##os.system('rosnode kill ' + prey)
-        # score[0] = score[0] + positive_score
-        # score[1] = score[1] + negative_score
-        # s = String()
-        # s.data = prey
-        # pub_killer.publish(s)
-
-        # Publish arena scoreboard
-        ma = MarkerArray()
-
-        m1 = Marker()
-        m1.header.frame_id = "/world"
-        m1.type = m1.TEXT_VIEW_FACING
-        m1.action = m1.ADD
-        m1.id = 0;
-        m1.scale.x= .2
-        m1.scale.y=.2
-        m1.scale.z=.6
-        m1.color.a = 1.0
-        m1.color.r = 1.0
-        m1.color.g = 0.0
-        m1.color.b = 0.0
-        m1.text = "R=" + str(score[0])
-        m1.pose.position.x = -5.0
-        m1.pose.position.y = 5.2
-        m1.pose.position.z = 0
-        ma.markers.append(m1)
-
-        m2 = Marker()
-        m2.header.frame_id = "/world"
-        m2.type = m2.TEXT_VIEW_FACING
-        m2.action = m2.ADD
-        m2.id = 1;
-        m2.scale.x = 0.2
-        m2.scale.y = 0.2
-        m2.scale.z = 0.6
-        m2.color.a = 1.0
-        m2.color.r = 0.0
-        m2.color.g = 1.0
-        m2.color.b = 0.0
-        m2.text = "G=" + str(score[1])
-        m2.pose.position.x = -3.0
-        m2.pose.position.y = 5.2
-        m2.pose.position.z = 0
-        ma.markers.append(m2)
-
-        m3 = Marker()
-        m3.header.frame_id = "/world"
-        m3.type = m3.TEXT_VIEW_FACING
-        m3.action = m3.ADD
-        m3.id = 2;
-        m3.scale.x = 0.2
-        m3.scale.y = 0.2
-        m3.scale.z = 0.6
-        m3.color.a = 1.0
-        m3.color.r = 0.0
-        m3.color.g = 0.0
-        m3.color.b = 1.0
-        m3.text = "B=" + str(score[2])
-        m3.pose.position.x = -1.0
-        m3.pose.position.y = 5.2
-        m3.pose.position.z = 0
-        ma.markers.append(m3)
-
-        m4 = Marker()
-        m4.header.frame_id = "/world"
-        m4.type = m4.TEXT_VIEW_FACING
-        m4.action = m4.ADD
-        m4.id = 3;
-        m4.scale.x = 0.2
-        m4.scale.y = 0.2
-        m4.scale.z = 0.6
-        m4.color.a = 1.0
-        m4.color.r = 0.0
-        m4.color.g = 0.0
-        m4.color.b = 1.0
-        # ,c rospy.Time(
-
-        time_now = rospy.get_time()
-
-        m4.text = "Time " + str(format(time_now - game_start, '.2f')) + " of " + str(game_duration)
-        m4.pose.position.x = 3.5
-        m4.pose.position.y = 5.2
-        m4.pose.position.z = 0
-        ma.markers.append(m4)
-
-        pub_score.publish(ma)
-        rate.sleep()
-
+    if ma_players.markers:
+        pub_players.publish(ma_players)
 
 if __name__ == '__main__':
-    try:
-        referee()
-    except rospy.ROSInterruptException:
-        pass
+
+    hunting_distance = rospy.get_param('/hunting_distance')
+    immunity_duration = rospy.get_param('/immunity_duration')
+    team_red = rospy.get_param('/team_red')
+    team_green = rospy.get_param('/team_green')
+    team_blue = rospy.get_param('/team_blue')
+    for player in team_red:
+        player_score_neg[player] = 0
+        player_score_pos[player] = 0
+    for player in team_green:
+        player_score_neg[player] = 0
+        player_score_pos[player] = 0
+    for player in team_blue:
+        player_score_neg[player] = 0
+        player_score_pos[player] = 0
+
+    # Create pinfo dictionary
+    rospy.sleep(2)
+    for player in team_red + team_green + team_blue:
+        pinfo[player] = Player()
+
+    tic = rospy.Time.now()
+    for player in team_red:
+        pinfo[player].x = random.random() * 1000 + 5000
+        pinfo[player].y = random.random() * 1000 + 5000
+        pinfo[player].stamp_killed = tic - rospy.Duration.from_sec(10)
+        pinfo[player].stamp_resuscitated = tic
+        pinfo[player].team = "red"
+
+    for player in team_green:
+        pinfo[player].x = random.random() * 1000 + 5000
+        pinfo[player].y = random.random() * 1000 + 5000
+        pinfo[player].stamp_killed = tic - rospy.Duration.from_sec(10)
+        pinfo[player].stamp_resuscitated = tic
+        pinfo[player].team = "green"
+
+    for player in team_blue:
+        pinfo[player].x = random.random() * 1000 + 5000
+        pinfo[player].y = random.random() * 1000 + 5000
+        pinfo[player].stamp_killed = tic - rospy.Duration.from_sec(10)
+        pinfo[player].stamp_resuscitated = tic
+        pinfo[player].team = "blue"
+
+    getPlayerPoses()
+
+    rospy.Timer(rospy.Duration(0.1), makeAPlayCallback, oneshot=False)
+    rospy.Timer(rospy.Duration(0.5), randomizeVelocityProfiles, oneshot=False)
+    rospy.Timer(rospy.Duration(0.05), checkGame, oneshot=False)
+    rospy.Timer(rospy.Duration(game_duration), gameEndCallback, oneshot=True)
+    # rospy.Timer(rospy.Duration(25), gameQueryCallback, oneshot=False)
+
+    game_start = rospy.Time.now()
+
+    rospy.spin()

@@ -5,26 +5,26 @@
 
   <rosparam command="load" file="$(find rws2019_bringup)/param/params.yaml"/>
 
-  <node name="moliveira" pkg="player_moliveira" type="player_moliveira_node" respawn="true" output="screen" respawn_delay="$(arg delay)"/>
-  <node name="jsantos" pkg="player_jsantos" type="player_jsantos_node" respawn="true" output="screen" respawn_delay="$(arg delay)"/>
-  <node name="drato" pkg="player_drato" type="node" respawn="true" output="screen" respawn_delay="$(arg delay)"/>
-  <node name="mferreira" pkg="player_mferreira" type="player_mferreira_node" respawn="true" output="screen" respawn_delay="$(arg delay)"/>
-  <node name="dsilva" pkg="player_dsilva" type="player_dsilva_node" respawn="true" output="screen" respawn_delay="$(arg delay)"/>
-  <node name="silvamfpedro" pkg="player_silvamfpedro" type="player_silvamfpedro_node" respawn="true" output="screen" respawn_delay="$(arg delay)"/>
-  <node name="acastro" pkg="player_acastro" type="player_acastro_node" respawn="true" output="screen" respawn_delay="$(arg delay)"/>
-  <node name="ttavares" pkg="player_ttavares" type="player_ttavares_node" respawn="true" output="screen" respawn_delay="$(arg delay)"/>
-  <node name="jmoreira" pkg="player_jmoreira" type="player_jmoreira_node" respawn="true" output="screen" respawn_delay="$(arg delay)"/>
-  <node name="tmadeira" pkg="player_tmadeira" type="player_tmadeira_node" respawn="true" output="screen" respawn_delay="$(arg delay)"/>
-  <node name="talmeida" pkg="player_talmeida" type="node" respawn="true" output="screen" respawn_delay="$(arg delay)"/>
-  <node name="jnogueira" pkg="player_jnogueira" type="player_jnogueira" respawn="true" output="screen" respawn_delay="$(arg delay)"/>
+  <node name="moliveira" pkg="player_moliveira" type="player_moliveira_node" respawn="false" output="screen" respawn_delay="$(arg delay)"/>
+  <node name="jsantos" pkg="player_jsantos" type="player_jsantos_node" respawn="false" output="screen" respawn_delay="$(arg delay)"/>
+  <node name="drato" pkg="player_drato" type="node" respawn="false" output="screen" respawn_delay="$(arg delay)"/>
+  <node name="mferreira" pkg="player_mferreira" type="player_mferreira_node" respawn="false" output="screen" respawn_delay="$(arg delay)"/>
+  <node name="dsilva" pkg="player_dsilva" type="player_dsilva_node" respawn="false" output="screen" respawn_delay="$(arg delay)"/>
+  <node name="silvamfpedro" pkg="player_silvamfpedro" type="player_silvamfpedro_node" respawn="false" output="screen" respawn_delay="$(arg delay)"/>
+  <node name="acastro" pkg="player_acastro" type="player_acastro_node" respawn="false" output="screen" respawn_delay="$(arg delay)"/>
+  <node name="ttavares" pkg="player_ttavares" type="player_ttavares_node" respawn="false" output="screen" respawn_delay="$(arg delay)"/>
+  <node name="jmoreira" pkg="player_jmoreira" type="player_jmoreira_node" respawn="false" output="screen" respawn_delay="$(arg delay)"/>
+  <node name="tmadeira" pkg="player_tmadeira" type="player_tmadeira_node" respawn="false" output="screen" respawn_delay="$(arg delay)"/>
+  <node name="talmeida" pkg="player_talmeida" type="node" respawn="false" output="screen" respawn_delay="$(arg delay)"/>
+  <node name="jnogueira" pkg="player_jnogueira" type="player_jnogueira" respawn="false" output="screen" respawn_delay="$(arg delay)"/>
 
   <node pkg="rviz" type="rviz" name="rviz" args="--display-config $(find rws2019_bringup)/config/rviz.rviz" required="true"/>
 
   <!--Launch the referee-->
-  <node pkg="rws2019_referee" type="referee.py" name="referee" output="screen"/>
+  <!--<node pkg="rws2019_referee" type="referee2.py" name="referee" output="screen"/>-->
   <!--Launch the killer-->
-  <node pkg="rws2019_referee" type="killer.py" name="killer"/>
-  <node pkg="rws2019_referee" type="draw_teams" name="draw_teams"/>
+  <!--<node pkg="rws2019_referee" type="killer.py" name="killer"/>-->
+  <!--<node pkg="rws2019_referee" type="draw_teams" name="draw_teams"/>-->
 
 
 </launch>
