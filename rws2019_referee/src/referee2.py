@@ -52,7 +52,7 @@ pub_referee = rospy.Publisher("referee_markers", MarkerArray, queue_size=10)
 pub_score = rospy.Publisher("score_markers", MarkerArray, queue_size=10)
 pub_rip = rospy.Publisher("kill_markers", MarkerArray, queue_size=10)
 pub_killer = rospy.Publisher("victim", String, queue_size=10)
-pub_players = rospy.Publisher("player_markers", MarkerArray, queue_size=10)
+pub_players = rospy.Publisher("player_info", MarkerArray, queue_size=10)
 rospy.init_node('referee', anonymous=True)  # initialize ros node
 listener = tf.TransformListener()
 broadcaster = tf.TransformBroadcaster()
@@ -350,6 +350,7 @@ def getPlayerPoses():
             (trans, rot) = listener.lookupTransform("/world", player, rospy.Time(0))
             pinfo[player].x = trans[0]
             pinfo[player].y = trans[1]
+            pinfo[player].rot = rot
             pinfo[player].stamp_last_pose = rospy.get_time()
 
         except (tf.LookupException, tf.ConnectivityException, tf.ExtrapolationException):
@@ -520,10 +521,28 @@ def checkGame(event):
             color_r, color_g, color_b = 0, 0, 1
 
         print("Publishing " + player)
+        # Draw text with player name
         ma_players.markers.append(
-            createMarker(frame_id=player, type=Marker.TEXT_VIEW_FACING, id=0, ns=player + '_text', scale_z=.6,
-                     color_r=color_r, color_g=color_g, color_b=color_b, color_a=1, frame_locked=1,
+            createMarker(frame_id='/world', type=Marker.TEXT_VIEW_FACING, id=0, ns=player, scale_z=.4,
+                     position_x=pinfo[player].x, position_y=pinfo[player].y,
+                     color_r=color_r, color_g=color_g, color_b=color_b, color_a=1,
                      text=player))
+        # Draw an arrow
+        ma_players.markers.append(
+            createMarker(frame_id='/world', type=Marker.ARROW, id=1, ns=player,
+                         scale_x=.5, scale_y=.1, scale_z=.1,
+                         position_x=pinfo[player].x, position_y=pinfo[player].y,
+                         orientation_x=pinfo[player].rot[0], orientation_y=pinfo[player].rot[1],
+                         orientation_z=pinfo[player].rot[2], orientation_w=pinfo[player].rot[3],
+                         color_r=color_r, color_g=color_g, color_b=color_b, color_a=.7, text=player))
+        # Draw a circle of hunting distance
+        ma_players.markers.append(
+            createMarker(frame_id='/world', type=Marker.CYLINDER, id=2, ns=player,
+                         scale_x=hunting_distance, scale_y=hunting_distance, scale_z=.01,
+                         position_x=pinfo[player].x, position_y=pinfo[player].y, position_z=-.2,
+                         orientation_x=pinfo[player].rot[0], orientation_y=pinfo[player].rot[1],
+                         orientation_z=pinfo[player].rot[2], orientation_w=pinfo[player].rot[3],
+                         color_r=color_r, color_g=color_g, color_b=color_b, color_a=.2, text=player))
     # --------------------------------
     # Publishing markers
     # --------------------------------
@@ -562,6 +581,7 @@ if __name__ == '__main__':
     for player in team_red:
         pinfo[player].x = random.random() * 1000 + 5000
         pinfo[player].y = random.random() * 1000 + 5000
+        pinfo[player].rot = (0,0,0,1)
         pinfo[player].stamp_killed = tic - rospy.Duration.from_sec(10)
         pinfo[player].stamp_resuscitated = tic
         pinfo[player].team = "red"
@@ -569,6 +589,7 @@ if __name__ == '__main__':
     for player in team_green:
         pinfo[player].x = random.random() * 1000 + 5000
         pinfo[player].y = random.random() * 1000 + 5000
+        pinfo[player].rot = (0,0,0,1)
         pinfo[player].stamp_killed = tic - rospy.Duration.from_sec(10)
         pinfo[player].stamp_resuscitated = tic
         pinfo[player].team = "green"
@@ -576,15 +597,16 @@ if __name__ == '__main__':
     for player in team_blue:
         pinfo[player].x = random.random() * 1000 + 5000
         pinfo[player].y = random.random() * 1000 + 5000
+        pinfo[player].rot = (0,0,0,1)
         pinfo[player].stamp_killed = tic - rospy.Duration.from_sec(10)
         pinfo[player].stamp_resuscitated = tic
         pinfo[player].team = "blue"
 
     getPlayerPoses()
 
-    rospy.Timer(rospy.Duration(0.1), makeAPlayCallback, oneshot=False)
+    rospy.Timer(rospy.Duration(0.3), makeAPlayCallback, oneshot=False)
     rospy.Timer(rospy.Duration(0.5), randomizeVelocityProfiles, oneshot=False)
-    rospy.Timer(rospy.Duration(0.05), checkGame, oneshot=False)
+    rospy.Timer(rospy.Duration(0.1), checkGame, oneshot=False)
     rospy.Timer(rospy.Duration(game_duration), gameEndCallback, oneshot=True)
     # rospy.Timer(rospy.Duration(25), gameQueryCallback, oneshot=False)
 
