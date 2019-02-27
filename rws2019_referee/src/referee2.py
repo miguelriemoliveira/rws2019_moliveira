@@ -499,7 +499,6 @@ def checkGame(event):
             continue
 
         distance = math.sqrt(pinfo[player].x ** 2 + pinfo[player].y ** 2)
-
         if distance > max_distance_to_arena:
             to_be_killed.append(player)
 
@@ -591,7 +590,7 @@ def checkGame(event):
 
         # Draw text with player name
         ma_players.markers.append(
-            createMarker(frame_id='/world', type=Marker.TEXT_VIEW_FACING, id=0, ns=player, scale_z=.4,
+            createMarker(frame_id='/world', type=Marker.TEXT_VIEW_FACING, id=0, ns=player, scale_z=.5,
                          position_x=pinfo[player].x, position_y=pinfo[player].y,
                          color_r=color_r, color_g=color_g, color_b=color_b, color_a=1,
                          text=player))
@@ -612,7 +611,7 @@ def checkGame(event):
                          position_x=pinfo[player].x, position_y=pinfo[player].y, position_z=-.2,
                          orientation_x=pinfo[player].rot[0], orientation_y=pinfo[player].rot[1],
                          orientation_z=pinfo[player].rot[2], orientation_w=pinfo[player].rot[3],
-                         color_r=color_r, color_g=color_g, color_b=color_b, color_a=.2))
+                         color_r=color_r, color_g=color_g, color_b=color_b, color_a=.05))
 
         # Draw a bright circle signalizing immunity
         if (rospy.Time.now() - pinfo[player].stamp_resuscitated).to_sec() < immunity_duration:
@@ -675,9 +674,7 @@ if __name__ == '__main__':
     rospy.Timer(rospy.Duration(0.5), randomizeVelocityProfiles, oneshot=False)
     rospy.Timer(rospy.Duration(0.03), checkGame, oneshot=False)
     rospy.Timer(rospy.Duration(game_duration), gameEndCallback, oneshot=True)
-
     # rospy.Timer(rospy.Duration(25), gameQueryCallback, oneshot=False)
-
 
     game_start = rospy.Time.now()
 

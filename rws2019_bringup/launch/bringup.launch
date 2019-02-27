@@ -21,7 +21,7 @@
   <node pkg="rviz" type="rviz" name="rviz" args="--display-config $(find rws2019_bringup)/config/rviz.rviz" required="true"/>
 
   <!--Launch the referee-->
-  <!--<node pkg="rws2019_referee" type="referee2.py" name="referee" output="screen"/>-->
+  <node pkg="rws2019_referee" type="referee2.py" name="referee" output="screen"/>
   <!--Launch the killer-->
   <!--<node pkg="rws2019_referee" type="killer.py" name="killer"/>-->
   <!--<node pkg="rws2019_referee" type="draw_teams" name="draw_teams"/>-->
