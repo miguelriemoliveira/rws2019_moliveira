@@ -187,7 +187,7 @@ namespace moliveira_ns{
 
         void makeAPlayCallback(rws2019_msgs::MakeAPlayConstPtr msg)
         {
-            bool something_changed = false;
+//            bool something_changed = false;
 
             ROS_INFO("received a new msg");
 
@@ -238,16 +238,16 @@ namespace moliveira_ns{
 
 
             //Check if last_prey is different from prey
-            string prey = "";
-            if (idx_closest_prey != -1)
-            {
-               prey = msg->red_alive[idx_closest_prey];
-               if (prey != last_prey)
-               {
-                   something_changed = true;
-                   last_prey = prey;
-               }
-            }
+//            string prey = "";
+//            if (idx_closest_prey != -1)
+//            {
+//               prey = msg->red_alive[idx_closest_prey];
+//               if (prey != last_prey)
+//               {
+//                   something_changed = true;
+//                   last_prey = prey;
+//               }
+//            }
 
             //STEP2.5: check values
             float dx_max = msg->dog;
@@ -269,26 +269,26 @@ namespace moliveira_ns{
             tf::Transform Tglobal = T0*T1;
             br.sendTransform(tf::StampedTransform(Tglobal, ros::Time::now(), "world", player_name));
 
-            if (something_changed) {
-                visualization_msgs::Marker marker;
-                marker.header.frame_id = player_name;
-                marker.header.stamp = ros::Time();
-                marker.ns = player_name;
-                marker.id = 0;
-                marker.type = visualization_msgs::Marker::TEXT_VIEW_FACING;
-                marker.action = visualization_msgs::Marker::ADD;
-                marker.pose.position.y = 0.5;
-                marker.lifetime = ros::Duration(2);
-                marker.frame_locked = 1;
-                marker.scale.z = 0.4;
-                marker.color.a = 1.0; // Don't forget to set the alpha!
-                marker.color.r = 0.0;
-                marker.color.g = 0.0;
-                marker.color.b = 0.0;
-                marker.text = "tas tramado " + prey;
-
-                vis_pub->publish(marker);
-            }
+//            if (something_changed) {
+//                visualization_msgs::Marker marker;
+//                marker.header.frame_id = player_name;
+//                marker.header.stamp = ros::Time();
+//                marker.ns = player_name;
+//                marker.id = 0;
+//                marker.type = visualization_msgs::Marker::TEXT_VIEW_FACING;
+//                marker.action = visualization_msgs::Marker::ADD;
+//                marker.pose.position.y = 0.5;
+//                marker.lifetime = ros::Duration(2);
+//                marker.frame_locked = 1;
+//                marker.scale.z = 0.4;
+//                marker.color.a = 1.0; // Don't forget to set the alpha!
+//                marker.color.r = 0.0;
+//                marker.color.g = 0.0;
+//                marker.color.b = 0.0;
+//                marker.text = "tas tramado " + prey;
+//
+//                vis_pub->publish(marker);
+//            }
         }
 
     private:
