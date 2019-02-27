@@ -9,7 +9,9 @@ This is a long, multiline description
 import roslaunch
 
 import rospy
+import numpy as np
 from visualization_msgs.msg import Marker
+from geometry_msgs.msg import Point
 from visualization_msgs.msg import MarkerArray
 from std_msgs.msg import String
 from rws2019_msgs.msg import MakeAPlay
@@ -152,7 +154,7 @@ def createMarker(frame_id, type, action=Marker.ADD, ns='', id=0, lifetime=rospy.
                  orientation_x=0., orientation_y=0., orientation_z=0., orientation_w=0.,
              scale_x=1., scale_y=1., scale_z=1.,
                  color_r=0., color_g=0., color_b=0., color_a=1.,
-                 text=''):
+                 text='', points_x=[], points_y=[], points_z=[]):
     m = Marker()
 
     m.header.frame_id = frame_id
@@ -184,6 +186,13 @@ def createMarker(frame_id, type, action=Marker.ADD, ns='', id=0, lifetime=rospy.
 
     m.text = text
     m.frame_locked = frame_locked
+
+    for x,y,z in zip(points_x, points_y, points_z):
+        p = Point()
+        p.x = x
+        p.y = y
+        p.z = z
+        m.points.append(p)
 
     return m
 
@@ -394,7 +403,7 @@ def printPInfo():
 
 
 def checkGame(event):
-    global listener, broadcaster, pinfo, immunity_duration, hunting_distance, max_distance_from_center_of_arena
+    global listener, broadcaster, pinfo, immunity_duration, hunting_distance, max_distance_to_arena
     global game_duration, score
     global team_red, team_green, team_red
     global pub_score, game_over
@@ -405,7 +414,7 @@ def checkGame(event):
     # -----------------------------
     # Initialize lists
     # -----------------------------
-    max_distance_from_center_of_arena = 8
+    max_distance_to_arena = 8
     to_be_killed = []
     rospy.loginfo("killed players " + str(killed))
     ma_killed = MarkerArray()
@@ -491,7 +500,7 @@ def checkGame(event):
 
         distance = math.sqrt(pinfo[player].x ** 2 + pinfo[player].y ** 2)
 
-        if distance > max_distance_from_center_of_arena:
+        if distance > max_distance_to_arena:
             to_be_killed.append(player)
 
             # update player score
@@ -557,6 +566,16 @@ def checkGame(event):
                      color_b=1, color_a=1,
                      text="Time " + str(format((rospy.Time.now() - game_start).to_sec(), '.2f')) + " of " + str(
                          game_duration)))
+
+    r = max_distance_to_arena
+    a = np.linspace(0, 2*math.pi, 100)
+    x,y,z = list(r * np.cos(a)), list(r * np.sin(a)), list(0 * np.sin(a))
+    ma_arena.markers.append(
+        createMarker(frame_id="/world", type=Marker.LINE_STRIP, id=5,
+                     scale_x=0.1,
+                     color_r=.8, color_g=.8, color_b=.8, color_a=.1,
+                     text="Time " + str(format((rospy.Time.now() - game_start).to_sec(), '.2f')) + " of " + str(
+                         game_duration), points_x=x, points_y=y, points_z=z))
 
     # --------------------------------
     # Create player markers
