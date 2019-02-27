@@ -238,9 +238,10 @@ namespace moliveira_ns{
 
 
             //Check if last_prey is different from prey
+            string prey = "";
             if (idx_closest_prey != -1)
             {
-               string prey = msg->red_alive[idx_closest_prey];
+               prey = msg->red_alive[idx_closest_prey];
                if (prey != last_prey)
                {
                    something_changed = true;
