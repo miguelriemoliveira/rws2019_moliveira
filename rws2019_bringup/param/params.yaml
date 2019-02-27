@@ -5,8 +5,8 @@ team_green: ["ttavares","acastro","dsilva", "psilva"]
 team_blue: ["moliveira","jsantos","drato","mferreira"]
 #team_blue: ["moliveira","jsantos","mferreira"]
 hunting_distance: 0.5
-game_duration: 120
+game_duration: 60
 immunity_duration: 3
-killed_duration: 10
+killed_duration: 5
 positive_score: 1
 negative_score: -1
