@@ -380,9 +380,9 @@ def gameEndCallback(event):
 
     if score['red'] > score['green'] and score['red'] > score['blue']:
         text = "Team R wins the game"
-    if score['green'] > score['red'] and score['green'] > score['blue']:
+    elif score['green'] > score['red'] and score['green'] > score['blue']:
         text = "Team G wins the game"
-    if score['blue'] > score['red'] and score['blue'] > score['green']:
+    elif score['blue'] > score['red'] and score['blue'] > score['green']:
         text = "Team B wins the game"
     else:
         text = "WHAT HAPPENNED?"
