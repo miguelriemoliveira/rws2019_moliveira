@@ -279,6 +279,7 @@ namespace moliveira_ns{
                 marker.action = visualization_msgs::Marker::ADD;
                 marker.pose.position.y = 0.5;
                 marker.lifetime = ros::Duration(2);
+                marker.frame_locked = 1;
                 marker.scale.z = 0.4;
                 marker.color.a = 1.0; // Don't forget to set the alpha!
                 marker.color.r = 0.0;
