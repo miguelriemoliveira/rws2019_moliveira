@@ -6,6 +6,9 @@ This is a long, multiline description
 # ------------------------
 #   IMPORTS
 # ------------------------
+import os
+import signal
+
 import rospy
 from visualization_msgs.msg import Marker
 from visualization_msgs.msg import MarkerArray
@@ -25,14 +28,73 @@ import rospkg
 #   DATA STRUCTURES
 # ------------------------
 class Player:
-    x = None
-    y = None
-    stamp_last_pose = None
-    stamp_resuscitated = None
-    stamp_killed = None
-    team = ''
-    num_hunted = 0
-    num_preyed = 0
+
+    def __init__(self, name):
+        self.name = name
+        self.team = self.checkTeam()
+        self.x = random.random() * 1000 + 5000
+        self.y = random.random() * 1000 + 5000
+        self.rot = (0, 0, 0, 1)
+        self.stamp_last_pose = None
+        self.stamp_resuscitated = rospy.Time.now()
+        self.stamp_killed = rospy.Time.now() - rospy.Duration.from_sec(10)
+        self.num_hunted = 0
+        self.num_preyed = 0
+        self.score = 0
+        self.processes = [] # list of processes for this player
+
+    def checkTeam(self):
+        """
+        Checks to which team a player belongs to
+        :return: a String containing the name of the team
+        """
+        if self.name in rospy.get_param('/team_red'):
+            return 'red'
+        elif self.name in rospy.get_param('/team_green'):
+            return 'green'
+        elif self.name in rospy.get_param('/team_blue'):
+            return 'blue'
+
+    def resuscitate(self):
+        for process in self.processes:
+            process.kill()
+        self.processes = []
+
+        cmd = "rosrun player_" + self.name + ' player_' + self.name + '_node'
+        # p = subprocess.Popen(cmd, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+        # p = subprocess.Popen(cmd, stdout=subprocess.PIPE,  stderr=subprocess.PIPE,
+        #                        shell=True, preexec_fn=os.setsid)
+
+        p = subprocess.Popen("exec " + cmd, stdout=subprocess.PIPE, shell=True)
+        self.processes.append(p)
+        self.stamp_resuscitated = rospy.Time.now()
+
+    def kill(self):
+        cmd = "rosnode kill " + player
+        # p = subprocess.Popen(cmd, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+        # rospy.loginfo("Waiting to rosnode kill " + self.name)
+        # p.wait()
+        # p.kill()
+
+        for process in self.processes:
+            process.kill()
+            # os.killpg(os.getpgid(process.pid), signal.SIGTERM)
+
+        self.processes = []
+
+        self.stamp_killed = rospy.Time.now()
+
+    def updatePose(self):
+        try:
+            (trans, rot) = listener.lookupTransform("/world", self.name, rospy.Time(0))
+            self.x = trans[0]
+            self.y = trans[1]
+            self.rot = rot
+            self.stamp_last_pose = rospy.get_time()
+
+        except (tf.LookupException, tf.ConnectivityException, tf.ExtrapolationException):
+            # rospy.logwarn("Could not get pose of player " + str(player))
+            pass
 
     def __str__(self):
         s = String()
@@ -47,13 +109,13 @@ class Player:
 # GLOBAL VARIABLES
 # ------------------------
 score = {'red': 0, 'green': 0, 'blue': 0}
-pub_make_a_play = rospy.Publisher('make_a_play', MakeAPlay, queue_size=0)
+pub_make_a_play = rospy.Publisher('make_a_play', MakeAPlay, queue_size=10)
 pub_referee = rospy.Publisher("referee_markers", MarkerArray, queue_size=10)
 pub_score = rospy.Publisher("score_markers", MarkerArray, queue_size=10)
 pub_rip = rospy.Publisher("kill_markers", MarkerArray, queue_size=10)
 pub_killer = rospy.Publisher("victim", String, queue_size=10)
 pub_players = rospy.Publisher("player_info", MarkerArray, queue_size=10)
-rospy.init_node('referee', anonymous=True)  # initialize ros node
+rospy.init_node('referee', anonymous=False)  # initialize ros node
 listener = tf.TransformListener()
 broadcaster = tf.TransformBroadcaster()
 
@@ -88,9 +150,11 @@ dog_speed = 0.1
 #
 # @return
 def bash(cmd, blocking=True):
-    print "Executing command: " + cmd
+    # print "Executing command: " + cmd
+    # p = subprocess.Popen(cmd, shell=True, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
     p = subprocess.Popen(cmd, shell=True, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
 
+    # if blocking or True:
     if blocking:
         for line in p.stdout.readlines():
             print line,
@@ -246,9 +310,10 @@ def makeAPlayCallback(event):
     :param event:
     :return:
     """
-    global game_pause, game_over, team_red, team_green, team_blue, killed, pub_make_a_play
+    global game_pause, game_over, team_red, team_green, team_blue, killed
 
     if game_pause == True or game_over:  # do not publish if game is over or paused
+        rospy.logwarn("Game is paused or over!!!")
         if game_over:
             printScores()
         return
@@ -257,26 +322,22 @@ def makeAPlayCallback(event):
     a = MakeAPlay()  # Create a MakeAPlay message
 
     print("killed: " + str(killed))
-    if len(killed) == 0:  # get only the names, i.e. [0], from the killed list
-        players_killed = []
-    else:
-        players_killed = [i[0] for i in killed]
 
     # Find on which team the killed are
     for player in team_red:
-        if player in players_killed:
+        if player in killed:
             a.red_dead.append(player)
         else:
             a.red_alive.append(player)
 
     for player in team_green:
-        if player in players_killed:
+        if player in killed:
             a.green_dead.append(player)
         else:
             a.green_alive.append(player)
 
     for player in team_blue:
-        if player in players_killed:
+        if player in killed:
             a.blue_dead.append(player)
         else:
             a.blue_alive.append(player)
@@ -289,6 +350,7 @@ def makeAPlayCallback(event):
 
     # Publish MakeAPlay msg
     if not rospy.is_shutdown():
+        rospy.loginfo("Publishing a make a play")
         pub_make_a_play.publish(a)
 
 
@@ -312,17 +374,21 @@ def printScores():
 
 
 def gameEndCallback(event):
-    rospy.loginfo("Game finished")
-    global pub_score, game_over
+    """
+    Called after the game time expires. Show print winning team along with additional info.
+    :param event: timer event
+    """
+    rospy.logwarn("\n\n\nGame finished\n\n\n")
+    global pub_score, game_over, score
     game_over = True
 
     ma = MarkerArray()
 
-    if score[0] > score[1] and score[0] > score[2]:
+    if score['red'] > score['green'] and score['red'] > score['blue']:
         text = "Team R wins the game"
-    elif score[1] > score[0] and score[1] > score[2]:
+    if score['green'] > score['red'] and score['green'] > score['blue']:
         text = "Team G wins the game"
-    elif score[2] > score[0] and score[2] > score[1]:
+    if score['blue'] > score['red'] and score['blue'] > score['green']:
         text = "Team B wins the game"
     else:
         text = "WHAT HAPPENNED?"
@@ -332,30 +398,7 @@ def gameEndCallback(event):
 
     ma.markers.append(m)
     pub_score.publish(ma)
-    rate.sleep()
 
-    rospy.spin()
-
-    rospy.signal_shutdown("Game finished")
-
-
-def getPlayerPoses():
-    """
-    Get the pose of everyone in the arena
-    """
-    global team_red, team_green, team_blue, pinfo
-
-    for player in team_red + team_green + team_blue:
-        try:
-            (trans, rot) = listener.lookupTransform("/world", player, rospy.Time(0))
-            pinfo[player].x = trans[0]
-            pinfo[player].y = trans[1]
-            pinfo[player].rot = rot
-            pinfo[player].stamp_last_pose = rospy.get_time()
-
-        except (tf.LookupException, tf.ConnectivityException, tf.ExtrapolationException):
-            # rospy.logwarn("Could not get pose of player " + str(player))
-            pass
 
 
 def printPInfo():
@@ -367,6 +410,7 @@ def printPInfo():
 
 def checkGame(event):
     global listener, broadcaster, pinfo, immunity_duration, hunting_distance, max_distance_from_center_of_arena
+    global game_duration
     global team_red, team_green, team_red
     global pub_score, game_over
 
@@ -376,13 +420,9 @@ def checkGame(event):
     # -----------------------------
     # Initialize lists
     # -----------------------------
-    out_of_arena_A = []
-    out_of_arena_B = []
-    out_of_arena_C = []
     max_distance_from_center_of_arena = 8
     to_be_killed = []
-    killed_names = [item[0] for item in killed]
-    rospy.loginfo("killed players " + str(killed_names))
+    rospy.loginfo("killed players " + str(killed))
     ma_killed = MarkerArray()
     ma_arena = MarkerArray()
     ma_players = MarkerArray()
@@ -390,20 +430,21 @@ def checkGame(event):
     # -----------------------------
     # Resuscitating players
     # -----------------------------
-    # print killed
-    # tic = rospy.Time.now()
-    # for i in killed:
-    #     d = tic - i[1]
-    #     if d.to_sec() > 10:
-    #         rospy.logwarn("Ressuscitating %s", i[0])
-    #         killed.remove(i)
-    #         broadcaster.sendTransform((random.random() * 10 - 5, random.random() * 10 - 5, 0),
-    #                                   tf.transformations.quaternion_from_euler(0, 0, 0), tic, i[0], "/world")
+    tic = rospy.Time.now()
+    for player in killed:
+        if (rospy.Time.now() - pinfo[player].stamp_killed).to_sec() > killed_duration:
+            killed.remove(player)
+            pinfo[player].resuscitate()
+            rospy.logwarn("Ressuscitating %s", player)
+            # broadcaster.sendTransform((random.random() * 10 - 5, random.random() * 10 - 5, 0),
+            #                           tf.transformations.quaternion_from_euler(0, 0, 0), tic, player[0], "/world")
 
     # -----------------------------
     # Get the pose of all players
     # -----------------------------
-    getPlayerPoses()
+    for player in team_red + team_green + team_blue:
+        pinfo[player].updatePose()
+
     # printPInfo()
 
     # -----------------------------
@@ -416,74 +457,99 @@ def checkGame(event):
         # print("Checking for hunter team " + hunter_color + " and prey team " + prey_color)
         for hunter in hunters:
             # print("hunter " + hunter)
-            if hunter in killed_names:  # if hunter is killed he cannot hunt
+            if hunter in killed:  # if hunter is killed he cannot hunt
                 continue
             for prey in preys:
-                if prey in killed_names or prey in to_be_killed:  # cannot hunt already killed or to be killed prey
+                if prey in killed or prey in to_be_killed:  # cannot hunt already killed or to be killed prey
                     continue
 
-                if (rospy.Time.now() - pinfo[
-                    prey].stamp_resuscitated).to_sec() < immunity_duration:  # cannot hunt during the immunity time
+                # Cannot hunt during the immunity time
+                if (rospy.Time.now() - pinfo[prey].stamp_resuscitated).to_sec() < immunity_duration:
                     continue
 
-                distance = math.sqrt((pinfo[hunter].x - pinfo[prey].x) ** 2 +
-                                     (pinfo[hunter].y - pinfo[prey].y) ** 2)
+                distance = math.sqrt((pinfo[hunter].x - pinfo[prey].x) ** 2 + (pinfo[hunter].y - pinfo[prey].y) ** 2)
 
                 if distance < hunting_distance:
                     to_be_killed.append(prey)
-                    player_score_neg[prey] += negative_score
-                    player_score_pos[hunter] += positive_score
-                    score[prey_color] = score[prey_color] + negative_score
+
+                    # update hunter score
+                    pinfo[hunter].num_hunted += 1
+                    pinfo[hunter].score += positive_score
+
+                    # update prey score
+                    pinfo[prey].num_preyed += 1
+                    pinfo[prey].score += negative_score
+
+                    # update team scores
                     score[hunter_color] = score[hunter_color] + positive_score
+                    score[prey_color] = score[prey_color] + negative_score
+
+                    # print and draw
                     rospy.logwarn(prey + " (" + prey_color + ") was hunted by " + hunter + "(" + hunter_color + ")")
                     ma_killed.markers.append(
-                         createMarker(frame_id="/world", type=Marker.TEXT_VIEW_FACING, ns=prey, lifetime=rospy.Duration.from_sec(5),
-                         position_x=pinfo[prey].x, position_y=pinfo[prey].y,
-                         scale_z=0.4, color_r=0.8, color_g=0.6, color_b=0.2, color_a=1,
-                         text='RIP ' + prey + ' (by ' + hunter + ')'))
+                        createMarker(frame_id="/world", type=Marker.TEXT_VIEW_FACING, ns=prey,
+                                     lifetime=rospy.Duration.from_sec(5),
+                                     position_x=pinfo[prey].x, position_y=pinfo[prey].y,
+                                     scale_z=0.4, color_r=0.8, color_g=0.6, color_b=0.2, color_a=1,
+                                     text='RIP ' + prey + ' (by ' + hunter + ')'))
 
     # --------------------------------
     # Killing because of stray from arena
     # --------------------------------
     for player in team_red + team_green + team_blue:
-        if player in killed_names:  # if player is killed he cannot be killed for straying the arena
+        if player in killed:  # if player is killed he cannot be killed for straying the arena
             continue
 
-        if (rospy.Time.now() - pinfo[player].stamp_resuscitated).to_sec() < immunity_duration:  # cannot stray from arena during the immunity time
+        # Cannot stray from arena during immunity time
+        if (rospy.Time.now() - pinfo[player].stamp_resuscitated).to_sec() < immunity_duration:
             continue
 
         distance = math.sqrt(pinfo[player].x ** 2 + pinfo[player].y ** 2)
 
         if distance > max_distance_from_center_of_arena:
             to_be_killed.append(player)
-            player_score_neg[player] += negative_score
+
+            # update player score
+            pinfo[player].num_preyed += 1
+            pinfo[player].score += negative_score
+
+            # update team score
             color = pinfo[player].team
             score[color] = score[color] + negative_score
+
+            # print and draw
             rospy.logwarn(player + " (" + color + ") strayed away from the arena.")
             ma_killed.markers.append(
-                createMarker(frame_id="/world", type=Marker.TEXT_VIEW_FACING, ns=player, lifetime=rospy.Duration.from_sec(5),
-                         position_x=pinfo[player].x, position_y=pinfo[player].y,
-                         scale_z=0.4, color_r=0.2, color_g=0.2, color_b=0.2, color_a=1,
-                         text='You are a chiken ' + player))
+                createMarker(frame_id="/world", type=Marker.TEXT_VIEW_FACING, ns=player,
+                             lifetime=rospy.Duration.from_sec(5),
+                             position_x=pinfo[player].x, position_y=pinfo[player].y,
+                             scale_z=0.4, color_r=0.2, color_g=0.2, color_b=0.2, color_a=1,
+                             text='You are a chiken ' + player))
 
     # --------------------------------
     # Kill players
     # --------------------------------
-    print("to_be_killed = " + str(to_be_killed))
+    # rospy.loginfo("to_be_killed = " + str(to_be_killed))
+    kill_time = rospy.Time.now()
     for player in to_be_killed:
-        if player in [x[0] for x in killed]:  # cannot kill an already killed player
+        if player in killed:  # cannot kill an already killed player
             to_be_killed.remove(player)
             continue
 
-        print("Killing " + str(player))
-        to_be_killed.remove(player) # remove from list to be killed
-        bash("rosnode kill " + player, blocking=False)
-        kill_time = rospy.Time.now()
-        killed.append((player, kill_time))    # for team, out_of_arena in zip(['red', 'green', 'blue'], [out_of_arena_A, out_of_arena_B, out_of_arena_C]):
-        pinfo[player].stamp_killed = kill_time
+        rospy.logwarn("Killing " + str(player))
 
+        pinfo[player].kill()
+
+        to_be_killed.remove(player)  # remove from list to be killed
+        killed.append(player)
+
+    # --------------------------------
+    # Update transformation for killed players
+    # --------------------------------
+    for player in killed:
         broadcaster.sendTransform((random.random() * 1000 + 5000, random.random() * 1000 + 5000, 0),
-                                  tf.transformations.quaternion_from_euler(0, 0, 0), kill_time, player, "/world")
+                                  tf.transformations.quaternion_from_euler(0, 0, 0), rospy.Time.now(),
+                                  player, "/world")
 
     # --------------------------------
     # Create arena markers
@@ -510,7 +576,6 @@ def checkGame(event):
     # --------------------------------
     # Create player markers
     # --------------------------------
-    print("teams: " + str(team_red + team_green + team_blue))
     for player in team_red + team_green + team_blue:
         color = pinfo[player].team
         if color == 'red':
@@ -520,13 +585,13 @@ def checkGame(event):
         else:
             color_r, color_g, color_b = 0, 0, 1
 
-        print("Publishing " + player)
         # Draw text with player name
         ma_players.markers.append(
             createMarker(frame_id='/world', type=Marker.TEXT_VIEW_FACING, id=0, ns=player, scale_z=.4,
-                     position_x=pinfo[player].x, position_y=pinfo[player].y,
-                     color_r=color_r, color_g=color_g, color_b=color_b, color_a=1,
-                     text=player))
+                         position_x=pinfo[player].x, position_y=pinfo[player].y,
+                         color_r=color_r, color_g=color_g, color_b=color_b, color_a=1,
+                         text=player))
+
         # Draw an arrow
         ma_players.markers.append(
             createMarker(frame_id='/world', type=Marker.ARROW, id=1, ns=player,
@@ -534,15 +599,30 @@ def checkGame(event):
                          position_x=pinfo[player].x, position_y=pinfo[player].y,
                          orientation_x=pinfo[player].rot[0], orientation_y=pinfo[player].rot[1],
                          orientation_z=pinfo[player].rot[2], orientation_w=pinfo[player].rot[3],
-                         color_r=color_r, color_g=color_g, color_b=color_b, color_a=.7, text=player))
+                         color_r=color_r, color_g=color_g, color_b=color_b, color_a=.7))
+
         # Draw a circle of hunting distance
         ma_players.markers.append(
             createMarker(frame_id='/world', type=Marker.CYLINDER, id=2, ns=player,
-                         scale_x=hunting_distance, scale_y=hunting_distance, scale_z=.01,
+                         scale_x=2 * hunting_distance, scale_y=2 * hunting_distance, scale_z=.01,
                          position_x=pinfo[player].x, position_y=pinfo[player].y, position_z=-.2,
                          orientation_x=pinfo[player].rot[0], orientation_y=pinfo[player].rot[1],
                          orientation_z=pinfo[player].rot[2], orientation_w=pinfo[player].rot[3],
-                         color_r=color_r, color_g=color_g, color_b=color_b, color_a=.2, text=player))
+                         color_r=color_r, color_g=color_g, color_b=color_b, color_a=.2))
+
+        # Draw a bright circle signalizing immunity
+        if (rospy.Time.now() - pinfo[player].stamp_resuscitated).to_sec() < immunity_duration:
+            ma_players.markers.append(
+                createMarker(frame_id='/world', type=Marker.CYLINDER, id=3, ns=player,
+                             scale_x=3 * hunting_distance, scale_y=3 * hunting_distance, scale_z=.01,
+                             position_x=pinfo[player].x, position_y=pinfo[player].y, position_z=-.1,
+                             orientation_x=pinfo[player].rot[0], orientation_y=pinfo[player].rot[1],
+                             orientation_z=pinfo[player].rot[2], orientation_w=pinfo[player].rot[3],
+                             color_r=.7, color_g=.7, color_b=.7, color_a=.2, text=player))
+        else:  # remove the immunity ring
+            ma_players.markers.append(
+                createMarker(frame_id='/world', type=Marker.CYLINDER, id=3, ns=player, action=Marker.DELETE))
+
     # --------------------------------
     # Publishing markers
     # --------------------------------
@@ -555,61 +635,55 @@ def checkGame(event):
     if ma_players.markers:
         pub_players.publish(ma_players)
 
+def reAdvertise(event):
+    global pub_make_a_play
+    rospy.logwarn("Readvertising")
+    pub_make_a_play = rospy.Publisher('make_a_play', MakeAPlay, queue_size=10)
+
 if __name__ == '__main__':
 
     hunting_distance = rospy.get_param('/hunting_distance')
     immunity_duration = rospy.get_param('/immunity_duration')
+    killed_duration = rospy.get_param('/killed_duration')
+    rospy.sleep(0.5) # make sure the rospy time works
+
+    # -------------------------------------
+    # Create players
+    # -------------------------------------
     team_red = rospy.get_param('/team_red')
     team_green = rospy.get_param('/team_green')
     team_blue = rospy.get_param('/team_blue')
-    for player in team_red:
-        player_score_neg[player] = 0
-        player_score_pos[player] = 0
-    for player in team_green:
-        player_score_neg[player] = 0
-        player_score_pos[player] = 0
-    for player in team_blue:
-        player_score_neg[player] = 0
-        player_score_pos[player] = 0
-
-    # Create pinfo dictionary
-    rospy.sleep(2)
     for player in team_red + team_green + team_blue:
-        pinfo[player] = Player()
+        pinfo[player] = Player(player)
 
-    tic = rospy.Time.now()
-    for player in team_red:
-        pinfo[player].x = random.random() * 1000 + 5000
-        pinfo[player].y = random.random() * 1000 + 5000
-        pinfo[player].rot = (0,0,0,1)
-        pinfo[player].stamp_killed = tic - rospy.Duration.from_sec(10)
-        pinfo[player].stamp_resuscitated = tic
-        pinfo[player].team = "red"
+    # -------------------------------------
+    # Resuscitate
+    # -------------------------------------
+    for player in team_red + team_green + team_blue:
+        pinfo[player].resuscitate()
 
-    for player in team_green:
-        pinfo[player].x = random.random() * 1000 + 5000
-        pinfo[player].y = random.random() * 1000 + 5000
-        pinfo[player].rot = (0,0,0,1)
-        pinfo[player].stamp_killed = tic - rospy.Duration.from_sec(10)
-        pinfo[player].stamp_resuscitated = tic
-        pinfo[player].team = "green"
+    # -------------------------------------
+    # Update player poses
+    # -------------------------------------
+    rospy.sleep(0.5)
+    for player in team_red + team_green + team_blue:
+        pinfo[player].updatePose()
 
-    for player in team_blue:
-        pinfo[player].x = random.random() * 1000 + 5000
-        pinfo[player].y = random.random() * 1000 + 5000
-        pinfo[player].rot = (0,0,0,1)
-        pinfo[player].stamp_killed = tic - rospy.Duration.from_sec(10)
-        pinfo[player].stamp_resuscitated = tic
-        pinfo[player].team = "blue"
-
-    getPlayerPoses()
-
-    rospy.Timer(rospy.Duration(0.3), makeAPlayCallback, oneshot=False)
+    # -------------------------------------
+    # Setup periodical callbacks
+    # -------------------------------------
+    rospy.Timer(rospy.Duration(0.1), makeAPlayCallback, oneshot=False)
     rospy.Timer(rospy.Duration(0.5), randomizeVelocityProfiles, oneshot=False)
-    rospy.Timer(rospy.Duration(0.1), checkGame, oneshot=False)
+    rospy.Timer(rospy.Duration(0.03), checkGame, oneshot=False)
     rospy.Timer(rospy.Duration(game_duration), gameEndCallback, oneshot=True)
+    # rospy.Timer(rospy.Duration(1), reAdvertise, oneshot=False)
+
     # rospy.Timer(rospy.Duration(25), gameQueryCallback, oneshot=False)
+
 
     game_start = rospy.Time.now()
 
+    rospy.loginfo("Starting a game of %d secs", game_duration)
+
     rospy.spin()
+    rospy.signal_shutdown("Game finished")

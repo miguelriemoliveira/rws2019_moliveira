@@ -1,8 +1,12 @@
-team_red: ["jnogueira", "tmadeira", "talmeida", "jmoreira"]
-team_green: ["ttavares","acastro","dsilva", "psilva"]
-team_blue: ["moliveira","jsantos","drato","mferreira"]
+#team_red: ["jnogueira", "tmadeira", "talmeida", "jmoreira"]
+team_red: ["tmadeira", "jmoreira"]
+#team_green: ["ttavares","acastro","dsilva", "silvamfpedro"]
+team_green: ["ttavares","acastro","dsilva"]
+#team_blue: ["moliveira","jsantos","drato","mferreira"]
+team_blue: ["moliveira","jsantos","mferreira"]
 hunting_distance: 0.5
-game_duration: 120
-immunity_duration: 2
+game_duration: 120000
+immunity_duration: 3
+killed_duration: 10
 positive_score: 1
 negative_score: -1

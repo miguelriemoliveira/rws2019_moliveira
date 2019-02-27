@@ -196,7 +196,6 @@ namespace moliveira_ns{
                 ros::Duration(0.1).sleep();
             }
 
-            ROS_INFO("%d", __LINE__);
             //STEP 2: define how I want to move
 
             vector<float> distance_to_preys;
@@ -209,7 +208,6 @@ namespace moliveira_ns{
                 angle_to_preys.push_back( std::get<1>(t));
             }
 
-            ROS_INFO("%d", __LINE__);
             //compute closest prey
             int idx_closest_prey = -1;
             float distance_closest_prey = 1000;
@@ -222,7 +220,6 @@ namespace moliveira_ns{
                 }
             }
 
-            ROS_INFO("%d", __LINE__);
             ROS_INFO_STREAM("idx_closest_prey = " << idx_closest_prey);
 
             float dx = 10;
@@ -247,12 +244,10 @@ namespace moliveira_ns{
             q.setRPY(0, 0, a);
             T1.setRotation(q);
 
-            ROS_INFO("%d", __LINE__);
             //STEP 4: define global movement
             tf::Transform Tglobal = T0*T1;
             br.sendTransform(tf::StampedTransform(Tglobal, ros::Time::now(), "world", player_name));
 
-            ROS_INFO("%d", __LINE__);
             visualization_msgs::Marker marker;
             marker.header.frame_id = player_name;
             marker.header.stamp = ros::Time();
@@ -289,7 +284,7 @@ int main(int argc, char** argv)
     ros::NodeHandle n;
 
     moliveira_ns::MyPlayer player("moliveira", "green");
-    cout << "Hello World from " << player.player_name << " of team " << player.getTeamName() << endl;
+    ROS_INFO_STREAM("Initializing player " << "moliveira");
 
     ros::Subscriber sub = n.subscribe("/make_a_play", 100, &moliveira_ns::MyPlayer::makeAPlayCallback, &player);
 
