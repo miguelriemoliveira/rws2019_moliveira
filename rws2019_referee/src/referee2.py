@@ -6,8 +6,7 @@ This is a long, multiline description
 # ------------------------
 #   IMPORTS
 # ------------------------
-import os
-import signal
+import roslaunch
 
 import rospy
 from visualization_msgs.msg import Marker
@@ -41,7 +40,12 @@ class Player:
         self.num_hunted = 0
         self.num_preyed = 0
         self.score = 0
-        self.processes = [] # list of processes for this player
+        self.launch = None
+        self.package = 'player_' + self.name
+        self.executable = 'player_' + self.name + '_node'
+        self.node = roslaunch.core.Node(self.package, self.executable)
+        self.launch = roslaunch.scriptapi.ROSLaunch()
+        self.launch.start()
 
     def checkTeam(self):
         """
@@ -56,32 +60,14 @@ class Player:
             return 'blue'
 
     def resuscitate(self):
-        for process in self.processes:
-            process.kill()
-        self.processes = []
 
-        cmd = "rosrun player_" + self.name + ' player_' + self.name + '_node'
-        # p = subprocess.Popen(cmd, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-        # p = subprocess.Popen(cmd, stdout=subprocess.PIPE,  stderr=subprocess.PIPE,
-        #                        shell=True, preexec_fn=os.setsid)
-
-        p = subprocess.Popen("exec " + cmd, stdout=subprocess.PIPE, shell=True)
-        self.processes.append(p)
+        self.process = self.launch.launch(self.node)
         self.stamp_resuscitated = rospy.Time.now()
 
     def kill(self):
-        cmd = "rosnode kill " + player
-        # p = subprocess.Popen(cmd, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-        # rospy.loginfo("Waiting to rosnode kill " + self.name)
-        # p.wait()
-        # p.kill()
 
-        for process in self.processes:
-            process.kill()
-            # os.killpg(os.getpgid(process.pid), signal.SIGTERM)
-
-        self.processes = []
-
+        # print self.process.is_alive()
+        self.process.stop()
         self.stamp_killed = rospy.Time.now()
 
     def updatePose(self):
@@ -103,7 +89,6 @@ class Player:
             self.stamp_resuscitated) + '\n'
         a += 'hunted ' + str(self.num_hunted) + ' players and was hunted ' + str(self.num_preyed) + ' times'
         return a
-
 
 # ------------------------
 # GLOBAL VARIABLES
@@ -163,10 +148,10 @@ def bash(cmd, blocking=True):
 
 def createMarker(frame_id, type, action=Marker.ADD, ns='', id=0, lifetime=rospy.Duration(0), frame_locked=0,
                  stamp=rospy.Time.now(),
-                 position_x=0, position_y=0, position_z=0,
-                 orientation_x=0, orientation_y=0, orientation_z=0, orientation_w=0,
-                 scale_x=1, scale_y=1, scale_z=1,
-                 color_r=0, color_g=0, color_b=0, color_a=1,
+                 position_x=0., position_y=0., position_z=0.,
+                 orientation_x=0., orientation_y=0., orientation_z=0., orientation_w=0.,
+             scale_x=1., scale_y=1., scale_z=1.,
+                 color_r=0., color_g=0., color_b=0., color_a=1.,
                  text=''):
     m = Marker()
 
@@ -410,7 +395,7 @@ def printPInfo():
 
 def checkGame(event):
     global listener, broadcaster, pinfo, immunity_duration, hunting_distance, max_distance_from_center_of_arena
-    global game_duration
+    global game_duration, score
     global team_red, team_green, team_red
     global pub_score, game_over
 
@@ -635,11 +620,6 @@ def checkGame(event):
     if ma_players.markers:
         pub_players.publish(ma_players)
 
-def reAdvertise(event):
-    global pub_make_a_play
-    rospy.logwarn("Readvertising")
-    pub_make_a_play = rospy.Publisher('make_a_play', MakeAPlay, queue_size=10)
-
 if __name__ == '__main__':
 
     hunting_distance = rospy.get_param('/hunting_distance')
@@ -676,7 +656,6 @@ if __name__ == '__main__':
     rospy.Timer(rospy.Duration(0.5), randomizeVelocityProfiles, oneshot=False)
     rospy.Timer(rospy.Duration(0.03), checkGame, oneshot=False)
     rospy.Timer(rospy.Duration(game_duration), gameEndCallback, oneshot=True)
-    # rospy.Timer(rospy.Duration(1), reAdvertise, oneshot=False)
 
     # rospy.Timer(rospy.Duration(25), gameQueryCallback, oneshot=False)
 
