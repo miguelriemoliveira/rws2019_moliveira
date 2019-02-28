@@ -296,7 +296,17 @@ namespace moliveira_ns{
         bool doTheMathCallback(rws2019_msgs::DoTheMath::Request  &req,
                                rws2019_msgs::DoTheMath::Response &res)
         {
-            res.result = req.a + req.b;
+            if (req.op == "+")
+                res.result = req.a + req.b;
+            else if (req.op == "-")
+                res.result = req.a - req.b;
+            else if (req.op == "*")
+                res.result = req.a * req.b;
+            else if (req.op == "/")
+                res.result = req.a / req.b;
+            else
+                return false;
+
             ROS_INFO("request: x=%ld, y=%ld", (long int)req.a, (long int)req.b);
             ROS_INFO("sending back response: [%ld]", (long int)res.result);
             return true;
