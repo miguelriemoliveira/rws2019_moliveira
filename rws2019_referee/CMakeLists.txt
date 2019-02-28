@@ -17,10 +17,10 @@ find_package(catkin REQUIRED COMPONENTS
 
 ## System dependencies are found with CMake's conventions
 # find_package(Boost REQUIRED COMPONENTS system)
-#find_package(PCL REQUIRED)
-#include_directories(${PCL_INCLUDE_DIRS})
-#
-#link_directories(${PCL_LIBRARY_DIRS})
+find_package(PCL REQUIRED EXACT 1.9)
+include_directories(${PCL_INCLUDE_DIRS})
+
+link_directories(${PCL_LIBRARY_DIRS})
 
 
 ## Uncomment this if the package has a setup.py. This macro ensures
@@ -154,12 +154,12 @@ add_executable(pcd2pointcloud src/pcd2pointcloud.cpp)
 # add_dependencies(${PROJECT_NAME}_node ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
 
 ## Specify libraries to link a library or executable target against
-# target_link_libraries(pcd2pointcloud
-#    ${catkin_LIBRARIES} ${PCL_LIBRARIES}
-# )
  target_link_libraries(pcd2pointcloud
     ${catkin_LIBRARIES} ${PCL_LIBRARIES}
  )
+# target_link_libraries(pcd2pointcloud
+#    ${catkin_LIBRARIES} ${PCL_LIBRARIES}
+# )
 
  target_link_libraries(draw_teams
    ${catkin_LIBRARIES}
