@@ -10,6 +10,7 @@ import roslaunch
 
 import rospy
 import numpy as np
+import pandas
 from visualization_msgs.msg import Marker
 from geometry_msgs.msg import Point
 from visualization_msgs.msg import MarkerArray
@@ -92,6 +93,7 @@ class Player:
         a += 'hunted ' + str(self.num_hunted) + ' players and was hunted ' + str(self.num_preyed) + ' times'
         return a
 
+
 # ------------------------
 # GLOBAL VARIABLES
 # ------------------------
@@ -110,6 +112,9 @@ rate = 0
 game_duration = rospy.get_param('/game_duration')
 positive_score = rospy.get_param('/positive_score')
 negative_score = rospy.get_param('/negative_score')
+best_hunter_score = rospy.get_param('/best_hunter_score')
+best_survivor_score = rospy.get_param('/best_survivor_score')
+
 killed = []
 team_red = []
 team_green = []
@@ -125,6 +130,8 @@ cheetah_speed = 0.1
 turtle_speed = 0.1
 cat_speed = 0.1
 dog_speed = 0.1
+best_hunter = None
+best_survivor = None
 
 
 # ------------------------
@@ -152,7 +159,7 @@ def createMarker(frame_id, type, action=Marker.ADD, ns='', id=0, lifetime=rospy.
                  stamp=rospy.Time.now(),
                  position_x=0., position_y=0., position_z=0.,
                  orientation_x=0., orientation_y=0., orientation_z=0., orientation_w=0.,
-             scale_x=1., scale_y=1., scale_z=1.,
+                 scale_x=1., scale_y=1., scale_z=1.,
                  color_r=0., color_g=0., color_b=0., color_a=1.,
                  text='', points_x=[], points_y=[], points_z=[]):
     m = Marker()
@@ -187,7 +194,7 @@ def createMarker(frame_id, type, action=Marker.ADD, ns='', id=0, lifetime=rospy.
     m.text = text
     m.frame_locked = frame_locked
 
-    for x,y,z in zip(points_x, points_y, points_z):
+    for x, y, z in zip(points_x, points_y, points_z):
         p = Point()
         p.x = x
         p.y = y
@@ -301,6 +308,7 @@ def randomizeVelocityProfiles(event):
 
     rospy.loginfo("killed players " + str(killed))
 
+
 def makeAPlayCallback(event):
     """ Publishes a makeAPlay message
 
@@ -370,32 +378,80 @@ def printScores():
         to_print_end = False
 
 
+def getBestHunterAndSurvivor():
+    global best_hunter, best_survivor
+
+    ps = [(player, pinfo[player].num_hunted, pinfo[player].num_preyed) for player in pinfo.keys()]
+    hunt_values = [pinfo[player].num_hunted for player in pinfo.keys()]
+    prey_values = [pinfo[player].num_preyed for player in pinfo.keys()]
+
+    best_hunter, maximum_num_hunts, _ = max(ps, key=lambda item: item[1])
+    if hunt_values.count(maximum_num_hunts) > 1:
+        best_hunter = None
+
+    best_survivor, _, minimum_num_preyed = max(ps, key=lambda item: item[2])
+    if prey_values.count(minimum_num_preyed) > 1:
+        best_survivor = None
+
+    print('best hunter is ' + str(best_hunter))
+    print('best survivor is ' + str(best_survivor))
+
+
 def gameEndCallback(event):
     """
     Called after the game time expires. Show print winning team along with additional info.
     :param event: timer event
     """
     rospy.logwarn("\n\n\nGame finished\n\n\n")
-    global pub_score, game_over, score
+    global pub_score, game_over, score, best_hunter, best_survivor
     game_over = True
+    rospy.sleep(0.1)
 
-    ma = MarkerArray()
+    getBestHunterAndSurvivor()
+
+    if not best_hunter is None:
+        team = pinfo[best_hunter].team
+        score[team] += best_hunter_score
+
+    if not best_survivor is None:
+        team = pinfo[best_survivor].team
+        score[team] += best_survivor_score
 
     if score['red'] > score['green'] and score['red'] > score['blue']:
-        text = "Team R wins the game"
+        text = "Final score: red=" + str(score['red']) + ', green: ' + str(score['green']) + ', ' + str(
+            score['blue']) + "\nTeam R wins the game"
     elif score['green'] > score['red'] and score['green'] > score['blue']:
-        text = "Team G wins the game"
+        # text = "Team G wins the game"
+        text = "Final score: red=" + str(score['red']) + ', green: ' + str(score['green']) + ', ' + str(
+            score['blue']) + "\nTeam G wins the game"
     elif score['blue'] > score['red'] and score['blue'] > score['green']:
-        text = "Team B wins the game"
+        # text = "Team B wins the game"
+        text = "Final score: red=" + str(score['red']) + ', green: ' + str(score['green']) + ', ' + str(
+            score['blue']) + "\nTeam B wins the game"
     else:
-        text = "WHAT HAPPENNED?"
+        text = "Final score: red=" + str(score['red']) + ', green: ' + str(score['green']) + ', ' + str(
+            score['blue']) + "\nWHAT HAPPENNED???"
 
+    table = []
+    rows = []
+    for player in team_red + team_green + team_blue:
+        rows.append(player)
+        table.append([pinfo[player].team, pinfo[player].num_hunted, pinfo[player].num_preyed, int(player == best_hunter),
+                      int(player == best_survivor)])
+
+    df = pandas.DataFrame(table, rows, ['Team', 'Times hunted', 'Times preyed', 'Best hunter', 'Best survivor'])
+    print(df)
+
+    ma = MarkerArray()
     m = createMarker(frame_id='/world', type=Marker.TEXT_VIEW_FACING, id=777, scale_x=.2, scale_y=.2, scale_z=.9,
-                     color_r=.1, color_g=.1, color_b=.1, position_x=.5, position_y=4.5, text=text)
+                     color_r=.1, color_g=.1, color_b=.1, position_x=.5, position_y=4.0, text=text)
+    ma.markers.append(m)
+
+    m = createMarker(frame_id='/world', type=Marker.TEXT_VIEW_FACING, id=778, scale_x=.2, scale_y=.2, scale_z=.8,
+                     color_r=.1, color_g=.1, color_b=.1, position_x=.5, position_y=-10.0, text=str(df))
 
     ma.markers.append(m)
     pub_score.publish(ma)
-
 
 
 def printPInfo():
@@ -410,6 +466,7 @@ def checkGame(event):
     global game_duration, score
     global team_red, team_green, team_red
     global pub_score, game_over
+    global best_hunter, best_survivor
 
     if game_over:  # if game over no need to check
         return
@@ -422,7 +479,6 @@ def checkGame(event):
     ma_killed = MarkerArray()
     ma_arena = MarkerArray()
     ma_players = MarkerArray()
-
 
     # -----------------------------
     # Resuscitating players
@@ -539,16 +595,15 @@ def checkGame(event):
         to_be_killed.remove(player)  # remove from list to be killed
         killed.append(player)
 
-
     # -----------------------------
     # Check if any of the alive players has died on their own
     # -----------------------------
-    suicidals = [] # a temporary list of the suicidals, just to create a rviz marker
+    suicidals = []  # a temporary list of the suicidals, just to create a rviz marker
     for player in team_red + team_green + team_blue:
-        if not player in killed: # player should be alive, lets check
-            if not pinfo[player].process is None: # process contains a process information
+        if not player in killed:  # player should be alive, lets check
+            if not pinfo[player].process is None:  # process contains a process information
                 if not pinfo[player].process.is_alive():
-                    pinfo[player].kill() # TODO: must I really do this? Note sure ...
+                    pinfo[player].kill()  # TODO: must I really do this? Note sure ...
                     killed.append(player)
 
                     # Update scores
@@ -559,7 +614,6 @@ def checkGame(event):
                     rospy.logwarn("Strange, process " + player + " has died on its own.")
                     suicidals.append(player)
 
-
     # --------------------------------
     # Update transformation for killed players
     # --------------------------------
@@ -569,20 +623,61 @@ def checkGame(event):
                                   player, "/world")
 
     # --------------------------------
+    # get best hunter and survivor
+    # --------------------------------
+    getBestHunterAndSurvivor()
+
+    # --------------------------------
     # Create arena markers
     # --------------------------------
 
-    if suicidals: # list is not empty
+    if suicidals:  # list is not empty
         ma_arena.markers.append(
-         createMarker(frame_id="/world", type=Marker.TEXT_VIEW_FACING, id=0, ns='suicidals',
-                     position_x=0, position_y=-8.2, scale_z=.6,
-                     color_r=.4, color_a=1, text='We have suicidal maniacs: ' + str(suicidals), lifetime=rospy.Duration.from_sec(2)))
+            createMarker(frame_id="/world", type=Marker.TEXT_VIEW_FACING, id=0, ns='suicidals',
+                         position_x=0, position_y=-8.2, scale_z=.6,
+                         color_r=.4, color_a=1, text='We have suicidal maniacs: ' + str(suicidals),
+                         lifetime=rospy.Duration.from_sec(2)))
 
     ma_arena.markers.append(
         createMarker(frame_id="/world", type=Marker.TEXT_VIEW_FACING, id=0, position_x=-5, position_y=5.2, scale_z=.6,
                      color_r=1, color_a=1, text="R=" + str(score['red']), lifetime=rospy.Duration.from_sec(0)))
 
+    if best_hunter is None:
+        color_r, color_g, color_b = 0, 0, 0
+    else:
+        color = pinfo[best_hunter].team
+        if color == 'red':
+            color_r, color_g, color_b = 1, 0, 0
+        elif color == 'green':
+            color_r, color_g, color_b = 0, 1, 0
+        else:
+            color_r, color_g, color_b = 0, 0, 1
+
     ma_arena.markers.append(
+        createMarker(frame_id="/world", type=Marker.TEXT_VIEW_FACING, id=0, ns='best_hunter', position_x=0,
+                     position_y=6.2, scale_z=.6,
+                     color_r=color_r, color_g=color_g, color_b=color_b, color_a=1,
+                     text="Best hunter is " + str(best_hunter), lifetime=rospy.Duration.from_sec(0)))
+
+    if best_survivor is None:
+        color_r, color_g, color_b = 0, 0, 0
+    else:
+        color = pinfo[best_survivor].team
+        if color == 'red':
+            color_r, color_g, color_b = 1, 0, 0
+        elif color == 'green':
+            color_r, color_g, color_b = 0, 1, 0
+        else:
+            color_r, color_g, color_b = 0, 0, 1
+    ma_arena.markers.append(
+        createMarker(frame_id="/world", type=Marker.TEXT_VIEW_FACING, id=0, ns='best_survivor', position_x=0,
+                     position_y=7.2, scale_z=.6,
+                     color_r=color_r, color_g=color_g, color_b=color_b, color_a=1,
+                     text="Best survivor is " + str(best_survivor),
+                     lifetime=rospy.Duration.from_sec(0)))
+
+    ma_arena.markers.append(
+
         createMarker(frame_id="/world", type=Marker.TEXT_VIEW_FACING, id=1, position_x=-3, position_y=5.2, scale_z=.6,
                      color_g=1, color_a=1, text="G=" + str(score['green']), lifetime=rospy.Duration.from_sec(0)))
 
@@ -597,8 +692,8 @@ def checkGame(event):
                          game_duration)))
 
     r = max_distance_to_arena
-    a = np.linspace(0, 2*math.pi, 100)
-    x,y,z = list(r * np.cos(a)), list(r * np.sin(a)), list(0 * np.sin(a))
+    a = np.linspace(0, 2 * math.pi, 100)
+    x, y, z = list(r * np.cos(a)), list(r * np.sin(a)), list(0 * np.sin(a))
     ma_arena.markers.append(
         createMarker(frame_id="/world", type=Marker.LINE_STRIP, id=5,
                      scale_x=0.1,
@@ -623,7 +718,8 @@ def checkGame(event):
             createMarker(frame_id='/world', type=Marker.TEXT_VIEW_FACING, id=0, ns=player, scale_z=.5,
                          position_x=pinfo[player].x, position_y=pinfo[player].y,
                          color_r=color_r, color_g=color_g, color_b=color_b, color_a=1,
-                         text=player + ' (' + str(pinfo[player].num_hunted) + ',' + str(pinfo[player].num_preyed) + ')'))
+                         text=player + ' (' + str(pinfo[player].num_hunted) + ',' + str(
+                             pinfo[player].num_preyed) + ')'))
 
         # Draw an arrow
         ma_players.markers.append(
@@ -668,12 +764,13 @@ def checkGame(event):
     if ma_players.markers:
         pub_players.publish(ma_players)
 
+
 if __name__ == '__main__':
 
     hunting_distance = rospy.get_param('/hunting_distance')
     immunity_duration = rospy.get_param('/immunity_duration')
     killed_duration = rospy.get_param('/killed_duration')
-    rospy.sleep(0.5) # make sure the rospy time works
+    rospy.sleep(0.2)  # make sure the rospy time works
 
     # -------------------------------------
     # Create players
@@ -693,7 +790,7 @@ if __name__ == '__main__':
     # -------------------------------------
     # Update player poses
     # -------------------------------------
-    rospy.sleep(0.5)
+    rospy.sleep(0.2)
     for player in team_red + team_green + team_blue:
         pinfo[player].updatePose()
 
