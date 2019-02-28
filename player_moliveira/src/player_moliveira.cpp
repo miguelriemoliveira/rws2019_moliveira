@@ -6,6 +6,7 @@
 #include <visualization_msgs/Marker.h>
 
 #include <rws2019_msgs/MakeAPlay.h>
+#include <rws2019_msgs/DoTheMath.h>
 
 using namespace std;
 using namespace boost;
@@ -291,6 +292,17 @@ namespace moliveira_ns{
 //            }
         }
 
+
+        bool doTheMathCallback(rws2019_msgs::DoTheMath::Request  &req,
+                               rws2019_msgs::DoTheMath::Response &res)
+        {
+            res.result = req.a + req.b;
+            ROS_INFO("request: x=%ld, y=%ld", (long int)req.a, (long int)req.b);
+            ROS_INFO("sending back response: [%ld]", (long int)res.result);
+            return true;
+        }
+
+
     private:
     };
 }
@@ -304,6 +316,8 @@ int main(int argc, char** argv)
     ROS_INFO_STREAM("Initializing player " << "moliveira");
 
     ros::Subscriber sub = n.subscribe("/make_a_play", 100, &moliveira_ns::MyPlayer::makeAPlayCallback, &player);
+    ros::ServiceServer service = n.advertiseService("do_the_math", &moliveira_ns::MyPlayer::doTheMathCallback, &player);
+    ROS_INFO("Ready to do the math");
 
     player.printInfo();
 

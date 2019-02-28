@@ -1,5 +1,5 @@
 int64 a
 int64 b
-string operator
+string op
 ---
 int64 result
