@@ -174,7 +174,7 @@ namespace moliveira_ns{
                 listener.lookupTransform(player_name, other_player, ros::Time(0), T0);
             }
             catch (tf::TransformException ex){
-                ROS_ERROR("%s",ex.what());
+//                ROS_ERROR("%s",ex.what());
                 ros::Duration(0.01).sleep();
                 return {1000.0, 0.0};
             }
@@ -198,7 +198,7 @@ namespace moliveira_ns{
                 listener.lookupTransform("/world", player_name, ros::Time(0), T0);
             }
             catch (tf::TransformException ex){
-                ROS_ERROR("%s",ex.what());
+//                ROS_ERROR("%s",ex.what());
                 ros::Duration(0.1).sleep();
             }
 

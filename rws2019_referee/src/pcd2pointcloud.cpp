@@ -69,7 +69,6 @@ int main (int argc, char** argv)
 
     ros::Publisher pub = nh.advertise<sensor_msgs::PointCloud2>(output, 1);
 
-
     //Create the visualization msg
     ros::Publisher pub_marker = nh.advertise<visualization_msgs::Marker>(output + "_marker", 1);
 

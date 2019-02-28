@@ -42,12 +42,12 @@ class Player:
         self.num_hunted = 0
         self.num_preyed = 0
         self.score = 0
-        self.launch = None
         self.package = 'player_' + self.name
         self.executable = 'player_' + self.name + '_node'
-        self.node = roslaunch.core.Node(self.package, self.executable)
+        self.node = roslaunch.core.Node(self.package, self.executable, output=None, machine_name='')
         self.launch = roslaunch.scriptapi.ROSLaunch()
         self.launch.start()
+        self.process = None
 
     def checkTeam(self):
         """
@@ -222,7 +222,6 @@ def gameQueryCallback(event):
     # print("selected_team is = " + str(selected_team))
 
     # sortear um jogador alive da equipa desta iteracao
-
     selected_player = random.choice(selected_team)
     # selected_player = "moliveira"
     print("selected_player is = " + str(selected_player))
@@ -232,13 +231,13 @@ def gameQueryCallback(event):
     selected_object = random.choice(objects)
 
     rospack = rospkg.RosPack()
-    path_pcd = rospack.get_path('rws2018_referee') + "/../pcd/"
+    path_pcd = rospack.get_path('rws2019_referee') + "/pcd/"
     file_pcd = path_pcd + selected_object + ".pcd"
     # print("vou ler o " + str(file_pcd))
 
     # pedir ao pcd2pointcloud para enviar o objeto
 
-    cmd = "rosrun rws2018_referee pcd2pointcloud _input:=" + file_pcd + " _output:=/object_point_cloud /world:=" + selected_player + " _one_shot:=1"
+    cmd = "rosrun rws2019_referee pcd2pointcloud _input:=" + file_pcd + " _output:=/object_point_cloud /world:=" + selected_player + " _one_shot:=1"
     # print "Executing command: " + cmd
     p = subprocess.Popen(cmd, shell=True, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
     for line in p.stdout.readlines():
@@ -250,53 +249,57 @@ def gameQueryCallback(event):
     rospy.sleep(d)
 
     # chamar o servico game_query
-    service_name = "/" + selected_player + "/game_query"
-    correct_response = False
-
-    try:
-        rospy.wait_for_service(service_name, 1)
-    except rospy.ROSException, e:
-        print("Perguntei " + selected_object + " ao " + selected_player + " e ele(a) nao deu resposta")
-        print("RESPOSTA AUSENTE!  ...")
-
-    try:
-        game_query = rospy.ServiceProxy(service_name, GameQuery)
-        resp1 = game_query()
-        print("Perguntei " + selected_object + " ao " + selected_player + " e ele respondeu " + resp1.resposta)
-        # verificar a resposta e afetar a pontuacao
-        if selected_object == resp1.resposta:
-            print("RESPOSTA CERTA! FANTASTICO")
-            correct_response = True
-        else:
-            print("RESPOSTA ERRADA! NAO PERCEBES NADA DISTO ...")
-    except rospy.ServiceException, e:
-        print "Service call failed: %s" % e
-
-    print("score before:" + str(score))
-    if correct_response == True:
-        score[selected_team_count] = score[selected_team_count] + 5
-    else:
-        score[selected_team_count] = score[selected_team_count] - 5
-
-    print("score after:" + str(score))
-
-    if selected_team_count == 2:
-        selected_team_count = 0
-    else:
-        selected_team_count = selected_team_count + 1
-
-    # sleep for duration (to make sure people get the point clouds)
-    rospy.sleep(d)
-    game_pause = False
+    # service_name = "/" + selected_player + "/game_query"
+    # correct_response = False
+    #
+    # try:
+    #     rospy.wait_for_service(service_name, 1)
+    # except rospy.ROSException, e:
+    #     print("Perguntei " + selected_object + " ao " + selected_player + " e ele(a) nao deu resposta")
+    #     print("RESPOSTA AUSENTE!  ...")
+    #
+    # try:
+    #     game_query = rospy.ServiceProxy(service_name, GameQuery)
+    #     resp1 = game_query()
+    #     print("Perguntei " + selected_object + " ao " + selected_player + " e ele respondeu " + resp1.resposta)
+    #     # verificar a resposta e afetar a pontuacao
+    #     if selected_object == resp1.resposta:
+    #         print("RESPOSTA CERTA! FANTASTICO")
+    #         correct_response = True
+    #     else:
+    #         print("RESPOSTA ERRADA! NAO PERCEBES NADA DISTO ...")
+    # except rospy.ServiceException, e:
+    #     print "Service call failed: %s" % e
+    #
+    # print("score before:" + str(score))
+    # if correct_response == True:
+    #     score[selected_team_count] = score[selected_team_count] + 5
+    # else:
+    #     score[selected_team_count] = score[selected_team_count] - 5
+    #
+    # print("score after:" + str(score))
+    #
+    # if selected_team_count == 2:
+    #     selected_team_count = 0
+    # else:
+    #     selected_team_count = selected_team_count + 1
+    #
+    # # sleep for duration (to make sure people get the point clouds)
+    # rospy.sleep(d)
+    # game_pause = False
 
 
 def randomizeVelocityProfiles(event):
+    if game_pause == True or game_over:  # do not publish if game is over or paused
+        return
+
     global cheetah_speed, turtle_speed, dog_speed, cat_speed
     cheetah_speed = random.random() / 10
     turtle_speed = random.random() / 10
     dog_speed = random.random() / 10
     cat_speed = random.random() / 10
 
+    rospy.loginfo("killed players " + str(killed))
 
 def makeAPlayCallback(event):
     """ Publishes a makeAPlay message
@@ -307,7 +310,7 @@ def makeAPlayCallback(event):
     global game_pause, game_over, team_red, team_green, team_blue, killed
 
     if game_pause == True or game_over:  # do not publish if game is over or paused
-        rospy.logwarn("Game is paused or over!!!")
+        # rospy.logwarn("Game is paused or over!!!")
         if game_over:
             printScores()
         return
@@ -315,7 +318,7 @@ def makeAPlayCallback(event):
     # Define the message
     a = MakeAPlay()  # Create a MakeAPlay message
 
-    print("killed: " + str(killed))
+    # print("killed: " + str(killed))
 
     # Find on which team the killed are
     for player in team_red:
@@ -344,7 +347,7 @@ def makeAPlayCallback(event):
 
     # Publish MakeAPlay msg
     if not rospy.is_shutdown():
-        rospy.loginfo("Publishing a make a play")
+        # rospy.loginfo("Publishing a make a play")
         pub_make_a_play.publish(a)
 
 
@@ -416,10 +419,10 @@ def checkGame(event):
     # -----------------------------
     max_distance_to_arena = 8
     to_be_killed = []
-    rospy.loginfo("killed players " + str(killed))
     ma_killed = MarkerArray()
     ma_arena = MarkerArray()
     ma_players = MarkerArray()
+
 
     # -----------------------------
     # Resuscitating players
@@ -536,6 +539,27 @@ def checkGame(event):
         to_be_killed.remove(player)  # remove from list to be killed
         killed.append(player)
 
+
+    # -----------------------------
+    # Check if any of the alive players has died on their own
+    # -----------------------------
+    suicidals = [] # a temporary list of the suicidals, just to create a rviz marker
+    for player in team_red + team_green + team_blue:
+        if not player in killed: # player should be alive, lets check
+            if not pinfo[player].process is None: # process contains a process information
+                if not pinfo[player].process.is_alive():
+                    pinfo[player].kill() # TODO: must I really do this? Note sure ...
+                    killed.append(player)
+
+                    # Update scores
+                    pinfo[player].score += negative_score
+                    color = pinfo[player].team
+                    score[color] = score[color] + negative_score
+
+                    rospy.logwarn("Strange, process " + player + " has died on its own.")
+                    suicidals.append(player)
+
+
     # --------------------------------
     # Update transformation for killed players
     # --------------------------------
@@ -547,6 +571,12 @@ def checkGame(event):
     # --------------------------------
     # Create arena markers
     # --------------------------------
+
+    if suicidals: # list is not empty
+        ma_arena.markers.append(
+         createMarker(frame_id="/world", type=Marker.TEXT_VIEW_FACING, id=0, ns='suicidals',
+                     position_x=0, position_y=-8.2, scale_z=.6,
+                     color_r=.4, color_a=1, text='We have suicidal maniacs: ' + str(suicidals), lifetime=rospy.Duration.from_sec(2)))
 
     ma_arena.markers.append(
         createMarker(frame_id="/world", type=Marker.TEXT_VIEW_FACING, id=0, position_x=-5, position_y=5.2, scale_z=.6,
@@ -593,7 +623,7 @@ def checkGame(event):
             createMarker(frame_id='/world', type=Marker.TEXT_VIEW_FACING, id=0, ns=player, scale_z=.5,
                          position_x=pinfo[player].x, position_y=pinfo[player].y,
                          color_r=color_r, color_g=color_g, color_b=color_b, color_a=1,
-                         text=player))
+                         text=player + ' (' + str(pinfo[player].num_hunted) + ',' + str(pinfo[player].num_preyed) + ')'))
 
         # Draw an arrow
         ma_players.markers.append(
@@ -670,11 +700,11 @@ if __name__ == '__main__':
     # -------------------------------------
     # Setup periodical callbacks
     # -------------------------------------
-    rospy.Timer(rospy.Duration(0.1), makeAPlayCallback, oneshot=False)
+    rospy.Timer(rospy.Duration(0.2), makeAPlayCallback, oneshot=False)
     rospy.Timer(rospy.Duration(0.5), randomizeVelocityProfiles, oneshot=False)
-    rospy.Timer(rospy.Duration(0.03), checkGame, oneshot=False)
+    rospy.Timer(rospy.Duration(0.1), checkGame, oneshot=False)
     rospy.Timer(rospy.Duration(game_duration), gameEndCallback, oneshot=True)
-    # rospy.Timer(rospy.Duration(25), gameQueryCallback, oneshot=False)
+    # rospy.Timer(rospy.Duration(5), gameQueryCallback, oneshot=False)
 
     game_start = rospy.Time.now()
 
