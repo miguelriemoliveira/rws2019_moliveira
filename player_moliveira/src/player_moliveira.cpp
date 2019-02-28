@@ -4,6 +4,7 @@
 #include <tf/transform_broadcaster.h>
 #include <tf/transform_listener.h>
 #include <visualization_msgs/Marker.h>
+#include <sound_play/SoundRequest.h>
 
 #include <rws2019_msgs/MakeAPlay.h>
 #include <rws2019_msgs/DoTheMath.h>
@@ -105,6 +106,7 @@ namespace moliveira_ns{
         tf::TransformBroadcaster br;
         tf::TransformListener listener;
         boost::shared_ptr<ros::Publisher> vis_pub;
+        boost::shared_ptr<ros::Publisher> sound_play_pub;
         string last_prey;
         string last_hunter;
 
@@ -116,6 +118,9 @@ namespace moliveira_ns{
             ros::NodeHandle n;
             vis_pub = (boost::shared_ptr<ros::Publisher>) new ros::Publisher;
             (*vis_pub) = n.advertise<visualization_msgs::Marker>( "/bocas", 0 );
+
+            sound_play_pub = (boost::shared_ptr<ros::Publisher>) new ros::Publisher;
+            (*sound_play_pub) = n.advertise<sound_play::SoundRequest>("/robotsound", 10);
 
             if (team_red->playerBelongsToTeam(player_name))
             {
@@ -237,6 +242,14 @@ namespace moliveira_ns{
             else
                 a = M_PI;
 
+
+            sound_play::SoundRequest sound_request;
+            sound_request.sound = -3;
+            sound_request.command = 1;
+            sound_request.volume = 1.0;
+            sound_request.arg = "miguel oliveira, nothing to say";
+            sound_request.arg2 = "voice_kal_diphone";
+            sound_play_pub->publish(sound_request);
 
             //Check if last_prey is different from prey
 //            string prey = "";
