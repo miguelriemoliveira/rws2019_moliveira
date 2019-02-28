@@ -19,6 +19,7 @@
   <!--<node name="jnogueira" pkg="player_jnogueira" type="player_jnogueira" respawn="false" output="screen" respawn_delay="$(arg delay)"/>-->
 
   <node pkg="rviz" type="rviz" name="rviz" args="--display-config $(find rws2019_bringup)/config/rviz.rviz" required="true"/>
+  <node name="soundplay_node" pkg="sound_play" type="soundplay_node.py"/>
 
   <!--Launch the referee-->
   <!--<node pkg="rws2019_referee" type="referee2.py" name="referee" output="screen"/>-->
