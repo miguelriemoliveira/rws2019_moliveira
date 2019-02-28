@@ -389,7 +389,7 @@ def getBestHunterAndSurvivor():
     if hunt_values.count(maximum_num_hunts) > 1:
         best_hunter = None
 
-    best_survivor, _, minimum_num_preyed = max(ps, key=lambda item: item[2])
+    best_survivor, _, minimum_num_preyed = min(ps, key=lambda item: item[2])
     if prey_values.count(minimum_num_preyed) > 1:
         best_survivor = None
 
