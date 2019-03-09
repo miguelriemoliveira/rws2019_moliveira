@@ -467,6 +467,8 @@ def checkGame(event):
     global team_red, team_green, team_red
     global pub_score, game_over
     global best_hunter, best_survivor
+    hunting_distance = rospy.get_param('/hunting_distance')
+
 
     if game_over:  # if game over no need to check
         return

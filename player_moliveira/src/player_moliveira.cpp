@@ -107,6 +107,8 @@ namespace moliveira_ns{
         tf::TransformListener listener;
         boost::shared_ptr<ros::Publisher> vis_pub;
         boost::shared_ptr<ros::Publisher> sound_play_pub;
+        boost::shared_ptr<ros::Timer> timer;
+
         string last_prey;
         string last_hunter;
 
@@ -120,7 +122,10 @@ namespace moliveira_ns{
             (*vis_pub) = n.advertise<visualization_msgs::Marker>( "/bocas", 0 );
 
             sound_play_pub = (boost::shared_ptr<ros::Publisher>) new ros::Publisher;
-            (*sound_play_pub) = n.advertise<sound_play::SoundRequest>("/robotsound", 10);
+            (*sound_play_pub) = n.advertise<sound_play::SoundRequest>("/robotsound", 0);
+
+            timer = (boost::shared_ptr<ros::Timer>) new ros::Timer;
+            (*timer) = n.createTimer(ros::Duration(5), &MyPlayer::timerCallback, this);
 
             if (team_red->playerBelongsToTeam(player_name))
             {
@@ -160,6 +165,17 @@ namespace moliveira_ns{
 
             last_prey = "";
             last_hunter = "";
+        }
+
+        void timerCallback(const ros::TimerEvent& event)
+        {
+            sound_play::SoundRequest sound_request;
+            sound_request.sound = -3;
+            sound_request.command = 1;
+            sound_request.volume = 1.0;
+            sound_request.arg = "miguel oliveira, nothing to say";
+            sound_request.arg2 = "voice_kal_diphone";
+//            sound_play_pub->publish(sound_request);
         }
 
         void printInfo(void)
@@ -243,13 +259,7 @@ namespace moliveira_ns{
                 a = M_PI;
 
 
-            sound_play::SoundRequest sound_request;
-            sound_request.sound = -3;
-            sound_request.command = 1;
-            sound_request.volume = 1.0;
-            sound_request.arg = "miguel oliveira, nothing to say";
-            sound_request.arg2 = "voice_kal_diphone";
-            sound_play_pub->publish(sound_request);
+
 
             //Check if last_prey is different from prey
 //            string prey = "";
